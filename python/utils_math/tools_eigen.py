@@ -44,8 +44,7 @@ def compute_relative_dis(last_t, last_quat, curr_t, curr_quat):
     dis_trans = np.linalg.norm(rot1.inv().apply(last_t - curr_t))
     return dis_trans, dis_angle
 
-# Main function to test the conversion functions
-if __name__ == '__main__':
+def test_tools_eigen():
     # Define a position vector
     vec_p = np.array([0.1, 0.3, 0.6])
     # Define a quaternion vector representing a rotation
@@ -61,3 +60,7 @@ if __name__ == '__main__':
     print(vec_p)
     # Print the resulting quaternion vector
     print(vec_q)
+
+# Main function to test the conversion functions
+if __name__ == '__main__':
+    test_tools_eigen()
