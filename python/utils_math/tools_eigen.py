@@ -7,24 +7,36 @@ from scipy.spatial.transform import Rotation
 # Function to convert position and quaternion vectors to a transformation matrix
 # vec_p: position vector (x, y, z)
 # vec_q: quaternion vector (qw, qx, qy, qz)
-def convert_vec_to_matrix(vec_p, vec_q):
+def convert_vec_to_matrix(vec_p, vec_q, mode='wxyz'):
     # Initialize a 4x4 identity matrix
     tf = np.eye(4)
-    # Set the rotation part of the transformation matrix using the quaternion
-    tf[:3, :3] = Rotation.from_quat(np.roll(vec_q, -1)).as_matrix()
-    # Set the translation part of the transformation matrix
-    tf[:3, 3] = vec_p
+    if mode == 'xyzw':
+        # Set the rotation part of the transformation matrix using the quaternion
+        tf[:3, :3] = Rotation.from_quat(vec_q).as_matrix()
+        # Set the translation part of the transformation matrix
+        tf[:3, 3] = vec_p
+    elif mode == 'wxyz':
+        # Set the rotation part of the transformation matrix using the quaternion
+        tf[:3, :3] = Rotation.from_quat(np.roll(vec_q, -1)).as_matrix()
+        # Set the translation part of the transformation matrix
+        tf[:3, 3] = vec_p
     return tf
 
 # Function to convert a transformation matrix back to position and quaternion vectors
 # tf_matrix: 4x4 transformation matrix
 # vec_p: position vector (x, y, z)
 # vec_q: quaternion vector (qw, qx, qy, qz)
-def convert_matrix_to_vec(tf_matrix):
-    # Extract the translation vector from the matrix
-    vec_p = tf_matrix[:3, 3]
-    # Extract the rotation part of the matrix and convert it to a quaternion
-    vec_q = np.roll(Rotation.from_matrix(tf_matrix[:3, :3]).as_quat(), 1)
+def convert_matrix_to_vec(tf_matrix, mode='wxyz'):
+    if mode == 'xyzw':
+        # Extract the translation vector from the matrix
+        vec_p = tf_matrix[:3, 3]
+        # Extract the rotation part of the matrix and convert it to a quaternion
+        vec_q = Rotation.from_matrix(tf_matrix[:3, :3]).as_quat()
+    if mode == 'wxyz':
+        # Extract the translation vector from the matrix
+        vec_p = tf_matrix[:3, 3]
+        # Extract the rotation part of the matrix and convert it to a quaternion
+        vec_q = np.roll(Rotation.from_matrix(tf_matrix[:3, :3]).as_quat(), 1)
     return vec_p, vec_q
 
 def add_gaussian_noise_to_pose(trans, quat, mean=0, stddev=0.1):
