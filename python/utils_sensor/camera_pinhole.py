@@ -12,7 +12,7 @@ class CameraPinhole(Camera):
     undistorted_image = cv2.undistort(image, self.K, self.D)
     return undistorted_image
   
-def main():
+def main_test():
   """Main function to test the Camera class."""
   # Create a pinhole camera model
   D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
@@ -44,4 +44,4 @@ def main():
   print('aabb_max: {}'.format(aabb_max))
 
 if __name__ == '__main__':
-    main()
+  main_test()
