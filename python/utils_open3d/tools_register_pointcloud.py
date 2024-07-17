@@ -50,7 +50,7 @@ def crop_point_cloud(pcd):
   xyz = np.asarray(pcd.points)
   indices = xyz[:, 2] <= 5
   xyz = xyz[indices]
-  indices = xyz[:, 2] >= 0.2
+  indices = xyz[:, 2] >= -10
   xyz = xyz[indices]
   pcd = o3d.geometry.PointCloud()
   pcd.points = o3d.utility.Vector3dVector(xyz)
@@ -70,8 +70,8 @@ if __name__ == '__main__':
   pcd_src = crop_point_cloud(pcd_src)
 
   # Set initial guess
-  quat_ini = np.array([0.0, 0.0, 0.0, 1.0]) # qw, qx, qy, qz
-  trans_ini = np.array([0.0, 0.3, 0.0])     # x, y, z
+  quat_ini = np.array([0.5, 0.5, -0.5, 0.5]) # qw, qx, qy, qz
+  trans_ini = np.array([0.0, 0.0, 0.0])     # x, y, z
   rot_matrix = Rotation.from_quat(np.roll(quat_ini, -1)).as_matrix() # [qw qx qy qz] -> [qx qy qz qw]
   print(rot_matrix)
 

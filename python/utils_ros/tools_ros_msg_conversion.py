@@ -63,24 +63,38 @@ def convert_pts_to_rospts(header, pts, intensity=None, color=None, label=None):
 		return msg
 
 ##### Odometry
-def convert_rosodom_to_vec(odom):
-		"""trans: np.array([x y z]); quat: np.array([qw qx qy qz]) """
-		trans = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
-		quat = np.array([odom.pose.pose.orientation.w, odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z])
+def convert_rosodom_to_vec(odom, mode='xyzw'):
+		if mode == 'xyzw':
+			trans = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
+			quat = np.array([odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z, odom.pose.pose.orientation.w])
+		elif mode == 'wxyz':
+			trans = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
+			quat = np.array([odom.pose.pose.orientation.w, odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z])
 		return trans, quat
 
-def convert_vec_to_rosodom(trans, quat, header, child_frame_id):
-		"""trans: np.array([x y z]); quat: np.array([qw qx qy qz]) """
-		odom = Odometry()
-		odom.header = header
-		odom.child_frame_id = child_frame_id
-		odom.pose.pose.position.x = trans[0]
-		odom.pose.pose.position.y = trans[1]
-		odom.pose.pose.position.z = trans[2]
-		odom.pose.pose.orientation.x = quat[1]
-		odom.pose.pose.orientation.y = quat[2]
-		odom.pose.pose.orientation.z = quat[3]
-		odom.pose.pose.orientation.w = quat[0]
+def convert_vec_to_rosodom(trans, quat, header, child_frame_id, mode='xyzw'):
+		if mode == 'xyzw':
+			odom = Odometry()
+			odom.header = header
+			odom.child_frame_id = child_frame_id
+			odom.pose.pose.position.x = trans[0]
+			odom.pose.pose.position.y = trans[1]
+			odom.pose.pose.position.z = trans[2]
+			odom.pose.pose.orientation.x = quat[0]
+			odom.pose.pose.orientation.y = quat[1]
+			odom.pose.pose.orientation.z = quat[2]
+			odom.pose.pose.orientation.w = quat[3]
+		elif mode == 'wxyz':
+			odom = Odometry()
+			odom.header = header
+			odom.child_frame_id = child_frame_id
+			odom.pose.pose.position.x = trans[0]
+			odom.pose.pose.position.y = trans[1]
+			odom.pose.pose.position.z = trans[2]
+			odom.pose.pose.orientation.x = quat[1]
+			odom.pose.pose.orientation.y = quat[2]
+			odom.pose.pose.orientation.z = quat[3]
+			odom.pose.pose.orientation.w = quat[0]
 		return odom
 
 def convert_vec_to_rosodom(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):

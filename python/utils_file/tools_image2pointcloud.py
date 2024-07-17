@@ -12,7 +12,7 @@ def parse_arguments():
     parser.add_argument('--input_depth', type=str, required=True, help='Path to the depth image')
     parser.add_argument('--output_pc', type=str, required=True, help='Path to save the output point cloud')
     parser.add_argument('--dataset_type', type=str, required=True, help='habitat, anymal')
-    parser.add_argument('--depth_scale', type=float, required=True, default='0.039', help='0.039, 0.001')
+    parser.add_argument('--depth_scale', type=float, required=True, default='0.039', help='habitat: 0.039, anymal: 0.001')
     return parser.parse_args()
 
 def create_camera_intrinsics(dataset_type):
