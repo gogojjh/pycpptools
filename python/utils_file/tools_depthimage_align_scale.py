@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-def read_image(file_path):
+def read_image(file_path, depth_scale):
     """
     Read an image and convert it to a numpy array.
     
@@ -17,7 +17,7 @@ def read_image(file_path):
     numpy.ndarray: The image as a numpy array.
     """
     image = Image.open(file_path)
-    return np.array(image)
+    return np.array(image) * depth_scale
 
 def plot_images(image1, image2, title1="Image 1", title2="Image 2"):
     """
@@ -87,15 +87,17 @@ def main():
     parser = argparse.ArgumentParser(description="Process depth images.")
     parser.add_argument('--ref_depth_image', type=str, help="Path to the first depth image (reference).")
     parser.add_argument('--target_depth_image', type=str, help="Path to the second depth image to be scaled.")
+    parser.add_argument('--depth_scale', type=float, default='0.001', help='habitat: 0.039, anymal: 0.001')
     args = parser.parse_args()
     
     # Read the images
-    A = read_image(args.ref_depth_image)
-    B = read_image(args.target_depth_image)
+    A = read_image(args.ref_depth_image, args.depth_scale)
+    B = read_image(args.target_depth_image, args.depth_scale)
     print(A.shape)
 
     # Set zero value of pixels that is outside the range ([0.05m - 5.5m])
-    min_th, max_th = 50, 5500
+    # min_th, max_th = 50, 5500
+    min_th, max_th = 0.1, 7.0
     A_filter = np.zeros_like(A)
     B_filter = np.zeros_like(B)
 
