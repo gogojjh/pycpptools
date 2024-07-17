@@ -65,39 +65,47 @@ def convert_pts_to_rospts(header, pts, intensity=None, color=None, label=None):
 ##### Odometry
 def convert_rosodom_to_vec(odom, mode='xyzw'):
 		if mode == 'xyzw':
-			trans = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
-			quat = np.array([odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z, odom.pose.pose.orientation.w])
+			trans = np.array([
+				odom.pose.pose.position.x, 
+				odom.pose.pose.position.y, 
+				odom.pose.pose.position.z]
+			)
+			quat = np.array([
+				odom.pose.pose.orientation.x, 
+				odom.pose.pose.orientation.y, 
+				odom.pose.pose.orientation.z, 
+				odom.pose.pose.orientation.w]
+			)
 		elif mode == 'wxyz':
-			trans = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
-			quat = np.array([odom.pose.pose.orientation.w, odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z])
+			trans = np.array([
+				odom.pose.pose.position.x, 
+				odom.pose.pose.position.y, 
+				odom.pose.pose.position.z]
+			)
+			quat = np.array([
+				odom.pose.pose.orientation.w, 
+				odom.pose.pose.orientation.x, 
+				odom.pose.pose.orientation.y, 
+				odom.pose.pose.orientation.z]
+			)
 		return trans, quat
 
 def convert_vec_to_rosodom(trans, quat, header, child_frame_id, mode='xyzw'):
 		if mode == 'xyzw':
-			odom = Odometry()
-			odom.header = header
-			odom.child_frame_id = child_frame_id
-			odom.pose.pose.position.x = trans[0]
-			odom.pose.pose.position.y = trans[1]
-			odom.pose.pose.position.z = trans[2]
-			odom.pose.pose.orientation.x = quat[0]
-			odom.pose.pose.orientation.y = quat[1]
-			odom.pose.pose.orientation.z = quat[2]
-			odom.pose.pose.orientation.w = quat[3]
+			odom = convert_vec_to_rosodom_scale(
+				trans[0], trans[1], trans[2], 
+				quat[0], quat[1], quat[2], quat[3], 
+				header, child_frame_id
+			)
 		elif mode == 'wxyz':
-			odom = Odometry()
-			odom.header = header
-			odom.child_frame_id = child_frame_id
-			odom.pose.pose.position.x = trans[0]
-			odom.pose.pose.position.y = trans[1]
-			odom.pose.pose.position.z = trans[2]
-			odom.pose.pose.orientation.x = quat[1]
-			odom.pose.pose.orientation.y = quat[2]
-			odom.pose.pose.orientation.z = quat[3]
-			odom.pose.pose.orientation.w = quat[0]
+			odom = convert_vec_to_rosodom_scale(
+				trans[0], trans[1], trans[2], 
+        quat[3], quat[0], quat[1], quat[2], 
+        header, child_frame_id
+			)
 		return odom
 
-def convert_vec_to_rosodom(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):
+def convert_vec_to_rosodom_scale(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):
 		odom = Odometry()
 		odom.header = header
 		odom.child_frame_id = child_frame_id
@@ -110,7 +118,21 @@ def convert_vec_to_rosodom(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):
 		odom.pose.pose.orientation.w = qw
 		return odom
 
-def convert_vec_to_rospose(tx, ty, tz, qx, qy, qz, qw, header):
+def convert_vec_to_rospose(trans, quat, header, mode='xyzw'):
+		if mode == 'xyzw':
+			pose = convert_vec_to_rospose_scale(
+				trans[0], trans[1], trans[2], 
+				quat[0], quat[1], quat[2], quat[3], 
+				header)
+		elif mode == 'wxyz':
+			pose = convert_vec_to_rospose_scale(
+				trans[0], trans[1], trans[2], 
+				quat[3], quat[0], quat[1], quat[2], 
+				header
+			)
+		return pose
+
+def convert_vec_to_rospose_scale(tx, ty, tz, qx, qy, qz, qw, header):
 		pose = PoseStamped()
 		pose.header = header
 		pose.pose.position.x = tx
@@ -122,19 +144,32 @@ def convert_vec_to_rospose(tx, ty, tz, qx, qy, qz, qw, header):
 		pose.pose.orientation.w = qw
 		return pose
 
-def convert_vec_to_rostf(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):
-		tf_msg = TFMessage()
-		tf_data = TransformStamped()
-		tf_data.header = header
-		tf_data.child_frame_id = child_frame_id
-		tf_data.transform.translation.x = tx
-		tf_data.transform.translation.y = ty
-		tf_data.transform.translation.z = tz
-		tf_data.transform.rotation.x = qx
-		tf_data.transform.rotation.y = qy
-		tf_data.transform.rotation.z = qz
-		tf_data.transform.rotation.w = qw
-		tf_msg.transforms.append(tf_data)
+def convert_vec_to_rostf(trans, quat, header, child_frame_id, mode='xyzw'):
+		if mode == 'xyzw':
+			tf_msg = convert_vec_to_rostf_scale(
+				trans[0], trans[1], trans[2], 
+        quat[0], quat[1], quat[2], quat[3], 
+        header, child_frame_id
+			)
+		elif mode == 'wxyz':
+			tf_msg = convert_vec_to_rostf_scale(
+        trans[0], trans[1], trans[2], 
+        quat[3], quat[0], quat[1], quat[2], 
+        header, child_frame_id
+			)
+		return tf_msg
+
+def convert_vec_to_rostf_scale(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):
+		tf_msg = TransformStamped()
+		tf_msg.header = header
+		tf_msg.child_frame_id = "camera"
+		tf_msg.transform.translation.x = tx
+		tf_msg.transform.translation.y = ty
+		tf_msg.transform.translation.z = tz
+		tf_msg.transform.rotation.x = qx
+		tf_msg.transform.rotation.y = qy
+		tf_msg.transform.rotation.z = qz
+		tf_msg.transform.rotation.w = qw
 		return tf_msg
 
 ##### Visualization message

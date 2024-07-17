@@ -1,5 +1,12 @@
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
+
 import heapq
 import unittest
+
+from utils_algorithm.base_node import BaseNode as Node
+from utils_algorithm.base_graph import BaseGraph as Graph
 
 def dijkstra_shortest_path(graph, start_node, goal_node):
     if not graph.contain_node(start_node) or not graph.contain_node(goal_node):
@@ -33,28 +40,6 @@ def dijkstra_shortest_path(graph, start_node, goal_node):
     return distances[goal_node], path
 
 ##### TestShortestPath #####
-# Assume the Node and Graph classes are defined as follows:
-class Node:
-  def __init__(self, id):
-    self.id = id
-    self.edges = []
-
-  def __lt__(self, other):
-    return self.id < other.id
-
-  def add_edge(self, neighbor, weight):
-    self.edges.append((neighbor, weight))
-
-class Graph:
-  def __init__(self):
-    self.nodes = {}
-
-  def add_node(self, node):
-    self.nodes[node.id] = node
-
-  def contain_node(self, node):
-    return node.id in self.nodes
-
 class TestShortestPath(unittest.TestCase):
   def setUp(self):
     self.graph = Graph()
