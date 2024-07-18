@@ -2,25 +2,21 @@
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
 import rospy
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PoseArray
 from std_msgs.msg import Header
 from nav_msgs.msg import Odometry, Path
 import tf2_ros
 import tf.transformations as tf
 import numpy as np
 
-from tools_ros_msg_conversion import *
-from utils_algorithm.base_node import BaseNode as Node
-from utils_algorithm.base_graph import BaseGraph as Graph
+from . import tools_ros_msg_conversion as ros_msg
 
-def create_node_marker(node):
+def create_node_marker(node, header):
   marker = Marker()
-  marker.header.frame_id = "map"
-  marker.header.stamp = rospy.Time.now()
+  marker.header = header
   marker.ns = "nodes"
   marker.id = node.id
   marker.type = Marker.CUBE
@@ -28,10 +24,10 @@ def create_node_marker(node):
   marker.pose.position.x = node.trans_w_node[0]
   marker.pose.position.y = node.trans_w_node[1]
   marker.pose.position.z = node.trans_w_node[2]
-  marker.pose.orientation.x = 0.0
-  marker.pose.orientation.y = 0.0
-  marker.pose.orientation.z = 0.0
-  marker.pose.orientation.w = 1.0
+  marker.pose.orientation.x = node.quat_w_node[0]
+  marker.pose.orientation.y = node.quat_w_node[0]
+  marker.pose.orientation.z = node.quat_w_node[0]
+  marker.pose.orientation.w = node.quat_w_node[0]
   marker.scale.x = 0.5
   marker.scale.y = 0.5
   marker.scale.z = 0.5
@@ -41,10 +37,9 @@ def create_node_marker(node):
   marker.color.b = 0.0
   return marker
 
-def create_text_marker(text_id, position, text):
+def create_text_marker(text_id, position, text, header):
   marker = Marker()
-  marker.header.frame_id = "map"
-  marker.header.stamp = rospy.Time.now()
+  marker.header = header
   marker.ns = "text"
   marker.id = text_id
   marker.type = Marker.TEXT_VIEW_FACING
@@ -60,10 +55,9 @@ def create_text_marker(text_id, position, text):
   marker.text = text
   return marker
 
-def create_edge_marker(node1, node2, edge_id, weight):
+def create_edge_marker(node1, node2, edge_id, weight, header):
   marker = Marker()
-  marker.header.frame_id = "map"
-  marker.header.stamp = rospy.Time.now()
+  marker.header = header
   marker.ns = "edges"
   marker.id = edge_id
   marker.type = Marker.LINE_STRIP
@@ -88,31 +82,41 @@ def create_edge_marker(node1, node2, edge_id, weight):
   marker.points.append(end_point)
   return marker
 
-def publish_graph(graph, pub_graph):
+def publish_graph(graph, header, pub_graph, pub_graph_poses):
+  # Publish graph node and edges
   marker_array = MarkerArray()
   for node_id, node in graph.nodes.items():
-    node_marker = create_node_marker(node)
+    node_marker = create_node_marker(node, header)
     marker_array.markers.append(node_marker)
 
-    text_marker = create_text_marker(node.id, node.trans_w_node, f'{node_id}')
+    text_marker = create_text_marker(node.id, node.trans_w_node, f'{node_id}', header)
     marker_array.markers.append(text_marker)
 
   edge_id = 0
   for _, node in graph.nodes.items():
     for (next_node, weight) in node.edges:
-      edge_marker = create_edge_marker(node, next_node, edge_id, weight)
+      edge_marker = create_edge_marker(node, next_node, edge_id, weight, header)
       marker_array.markers.append(edge_marker)
       edge_id += 1
 
   pub_graph.publish(marker_array)
 
-
+  # Publish graph poses
+  poses = PoseArray()
+  poses.header = header
+  for node_id, node in graph.nodes.items():
+    pose_stamped = ros_msg.convert_vec_to_rospose(node.trans_w_node, node.quat_w_node, header)
+    poses.poses.append(pose_stamped.pose)
+  pub_graph_poses.publish(poses)
 
 class TestRosVisualization:
   def __init__(self):
     pass
 
   def run_test(self):
+    from utils_algorithm.base_node import BaseNode as Node
+    from utils_algorithm.base_graph import BaseGraph as Graph
+
     rospy.init_node('test_ros_visualization', anonymous=True)
 
     pub_graph = rospy.Publisher('/topo_graph', MarkerArray, queue_size=10)
@@ -139,24 +143,25 @@ class TestRosVisualization:
 
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
-      # Publish graph
-      publish_graph(graph, pub_graph)
-
-      # Publish odometry, path and tf messages
       header = Header()
       header.stamp = rospy.Time.now()
       header.frame_id = "map"
+
+      # Publish graph
+      publish_graph(graph, pub_graph, header)
+
+      # Publish odometry, path and tf messages
       child_frame_id = "camera"
 
-      odom_msg = convert_vec_to_rosodom(trans, quat, header, child_frame_id)
+      odom_msg = ros_msg.convert_vec_to_rosodom(trans, quat, header, child_frame_id)
       pub_odom.publish(odom_msg)
       
-      pose_msg = convert_vec_to_rospose(trans, quat, header)
+      pose_msg = ros_msg.convert_vec_to_rospose(trans, quat, header)
       path_msg.header = header
       path_msg.poses.append(pose_msg)
       pub_path.publish(path_msg)
 
-      tf_msg = convert_vec_to_rostf(trans, quat, header, child_frame_id)
+      tf_msg = ros_msg.convert_vec_to_rostf(trans, quat, header, child_frame_id)
       br.sendTransform(tf_msg)
 
       # Sleep to control the rate

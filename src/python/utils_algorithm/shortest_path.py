@@ -8,7 +8,10 @@ import unittest
 from utils_algorithm.base_node import BaseNode as Node
 from utils_algorithm.base_graph import BaseGraph as Graph
 
-def dijkstra_shortest_path(graph, start_node, goal_node):
+def dijk_shortest_path(graph, start_node, goal_node):
+    """
+    Implements Dijkstra's algorithm to find the shortest path between two nodes in a graph. 
+    """
     if not graph.contain_node(start_node) or not graph.contain_node(goal_node):
         return float('inf'), []
 
@@ -68,19 +71,19 @@ class TestShortestPath(unittest.TestCase):
     self.node_c.add_edge(self.node_e, 6)
 
   def test_shortest_path(self):
-    distance, path = dijkstra_shortest_path(self.graph, self.node_a, self.node_e)
+    distance, path = dijk_shortest_path(self.graph, self.node_a, self.node_e)
     self.assertEqual(distance, 7)
     self.assertEqual([node.id for node in path], [0, 1, 2, 3, 4])
 
   def test_no_path(self):
     new_node = Node(5)
     self.graph.add_node(new_node)
-    distance, path = dijkstra_shortest_path(self.graph, self.node_a, new_node)
+    distance, path = dijk_shortest_path(self.graph, self.node_a, new_node)
     self.assertEqual(distance, float('inf'))
     self.assertEqual(path, [self.node_a])
 
   def test_same_start_goal(self):
-    distance, path = dijkstra_shortest_path(self.graph, self.node_a, self.node_a)
+    distance, path = dijk_shortest_path(self.graph, self.node_a, self.node_a)
     self.assertEqual(distance, 0)
     self.assertEqual([node.id for node in path], [0])
 
