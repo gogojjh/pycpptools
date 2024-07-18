@@ -1,13 +1,17 @@
 import numpy as np
 
 class BaseNode:
-	def __init__(self, id, trans_w_node=np.zeros(3), quat_w_node=np.array([0.0, 0.0, 0.0, 1.0])):
+	def __init__(self, id, trans=np.zeros(3), quat=np.array([0.0, 0.0, 0.0, 1.0])):
 		# Initialize the node with a given id and an empty list of edges
 		self.id = id
 		self.edges = []
 
-		self.trans_w_node = trans_w_node
-		self.quat_w_node = quat_w_node
+		self.trans = trans
+		self.quat = quat
+
+		self.has_pose_gt = False
+		self.trans_gt = np.zeros(3)
+		self.quat_gt = np.array([0.0, 0.0, 0.0, 1.0])
 
 	def __str__(self):
 		# Return a string representation of the node, including its id and number of edges
@@ -18,9 +22,14 @@ class BaseNode:
 		# Define the less than operator for comparing nodes based on their id
 		return self.id < other.id
 
-	def set_pose(self, trans_w_node, quat_w_node):
-		self.trans_w_node = trans_w_node
-		self.quat_w_node = quat_w_node
+	def set_pose(self, trans, quat):
+		self.trans = trans
+		self.quat = quat
+
+	def set_pose_gt(self, trans_gt, quat_gt):
+		self.has_pose_gt = True
+		self.trans_gt = trans_gt
+		self.quat_gt = quat_gt
 
 	def add_edge(self, neighbor, weight):
 		# Add an edge to the node by appending a tuple of the neighbor node and the weight

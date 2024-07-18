@@ -21,17 +21,17 @@ def create_node_marker(node, header):
   marker.id = node.id
   marker.type = Marker.CUBE
   marker.action = Marker.ADD
-  marker.pose.position.x = node.trans_w_node[0]
-  marker.pose.position.y = node.trans_w_node[1]
-  marker.pose.position.z = node.trans_w_node[2]
-  marker.pose.orientation.x = node.quat_w_node[0]
-  marker.pose.orientation.y = node.quat_w_node[0]
-  marker.pose.orientation.z = node.quat_w_node[0]
-  marker.pose.orientation.w = node.quat_w_node[0]
+  marker.pose.position.x = node.trans[0]
+  marker.pose.position.y = node.trans[1]
+  marker.pose.position.z = node.trans[2]
+  marker.pose.orientation.x = node.quat[0]
+  marker.pose.orientation.y = node.quat[0]
+  marker.pose.orientation.z = node.quat[0]
+  marker.pose.orientation.w = node.quat[0]
   marker.scale.x = 0.5
   marker.scale.y = 0.5
   marker.scale.z = 0.5
-  marker.color.a = 1.0
+  marker.color.a = 0.7
   marker.color.r = 0.0
   marker.color.g = 1.0
   marker.color.b = 0.0
@@ -62,21 +62,21 @@ def create_edge_marker(node1, node2, edge_id, weight, header):
   marker.id = edge_id
   marker.type = Marker.LINE_STRIP
   marker.action = Marker.ADD
-  marker.scale.x = weight / 20.0
-  marker.color.a = 0.7
-  marker.color.r = 1.0
+  marker.scale.x = 0.1
+  marker.color.a = 0.5
+  marker.color.r = 0.0
   marker.color.g = 0.0
-  marker.color.b = 0.0
+  marker.color.b = 1.0
 
   start_point = Point()
-  start_point.x = node1.trans_w_node[0]
-  start_point.y = node1.trans_w_node[1]
-  start_point.z = node1.trans_w_node[2]
+  start_point.x = node1.trans[0]
+  start_point.y = node1.trans[1]
+  start_point.z = node1.trans[2]
 
   end_point = Point()
-  end_point.x = node2.trans_w_node[0]
-  end_point.y = node2.trans_w_node[1]
-  end_point.z = node2.trans_w_node[2]
+  end_point.x = node2.trans[0]
+  end_point.y = node2.trans[1]
+  end_point.z = node2.trans[2]
 
   marker.points.append(start_point)
   marker.points.append(end_point)
@@ -89,7 +89,7 @@ def publish_graph(graph, header, pub_graph, pub_graph_poses):
     node_marker = create_node_marker(node, header)
     marker_array.markers.append(node_marker)
 
-    text_marker = create_text_marker(node.id, node.trans_w_node, f'{node_id}', header)
+    text_marker = create_text_marker(node.id, node.trans, f'{node_id}', header)
     marker_array.markers.append(text_marker)
 
   edge_id = 0
@@ -105,7 +105,7 @@ def publish_graph(graph, header, pub_graph, pub_graph_poses):
   poses = PoseArray()
   poses.header = header
   for node_id, node in graph.nodes.items():
-    pose_stamped = ros_msg.convert_vec_to_rospose(node.trans_w_node, node.quat_w_node, header)
+    pose_stamped = ros_msg.convert_vec_to_rospose(node.trans, node.quat, header)
     poses.poses.append(pose_stamped.pose)
   pub_graph_poses.publish(poses)
 
