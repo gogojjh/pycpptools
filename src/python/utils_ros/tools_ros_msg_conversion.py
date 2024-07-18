@@ -162,7 +162,7 @@ def convert_vec_to_rostf(trans, quat, header, child_frame_id, mode='xyzw'):
 def convert_vec_to_rostf_scale(tx, ty, tz, qx, qy, qz, qw, header, child_frame_id):
 		tf_msg = TransformStamped()
 		tf_msg.header = header
-		tf_msg.child_frame_id = "camera"
+		tf_msg.child_frame_id = child_frame_id
 		tf_msg.transform.translation.x = tx
 		tf_msg.transform.translation.y = ty
 		tf_msg.transform.translation.z = tz

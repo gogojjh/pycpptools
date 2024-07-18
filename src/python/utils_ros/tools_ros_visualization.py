@@ -62,7 +62,7 @@ def create_edge_marker(node1, node2, edge_id, weight, header):
   marker.id = edge_id
   marker.type = Marker.LINE_STRIP
   marker.action = Marker.ADD
-  marker.scale.x = 0.1
+  marker.scale.x = 0.03
   marker.color.a = 0.5
   marker.color.r = 0.0
   marker.color.g = 0.0
@@ -108,6 +108,21 @@ def publish_graph(graph, header, pub_graph, pub_graph_poses):
     pose_stamped = ros_msg.convert_vec_to_rospose(node.trans, node.quat, header)
     poses.poses.append(pose_stamped.pose)
   pub_graph_poses.publish(poses)
+
+def publish_shortest_path(path, header, pub_shortest_path):
+  marker_array = MarkerArray()
+  edge_id = 0
+  for node in path:
+    if node.get_next_node() is None: break
+    edge_marker = create_edge_marker(node, node.get_next_node(), edge_id, 1.0, header)
+    edge_marker.scale.x = 0.08
+    edge_marker.color.a = 0.5
+    edge_marker.color.r = 0.0
+    edge_marker.color.g = 1.0
+    edge_marker.color.b = 0.0
+    marker_array.markers.append(edge_marker)
+    edge_id += 1
+  pub_shortest_path.publish(marker_array)
 
 class TestRosVisualization:
   def __init__(self):
