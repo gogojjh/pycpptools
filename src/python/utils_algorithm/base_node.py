@@ -13,6 +13,9 @@ class BaseNode:
 		self.trans_gt = np.zeros(3)
 		self.quat_gt = np.array([0.0, 0.0, 0.0, 1.0])
 
+		# Next node using in the shortest path
+		self.next_node = None
+
 	def __str__(self):
 		# Return a string representation of the node, including its id and number of edges
 		out_str = f'Node ID: {self.id} with edge number: {len(self.edges)}'
@@ -34,3 +37,9 @@ class BaseNode:
 	def add_edge(self, neighbor, weight):
 		# Add an edge to the node by appending a tuple of the neighbor node and the weight
 		self.edges.append((neighbor, weight))
+
+	def add_next_node(self, next_node):
+		self.next_node = next_node
+
+	def get_next_node(self):
+		return self.next_node

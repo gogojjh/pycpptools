@@ -94,8 +94,8 @@ def publish_graph(graph, header, pub_graph, pub_graph_poses):
 
   edge_id = 0
   for _, node in graph.nodes.items():
-    for (next_node, weight) in node.edges:
-      edge_marker = create_edge_marker(node, next_node, edge_id, weight, header)
+    for (to_node, weight) in node.edges:
+      edge_marker = create_edge_marker(node, to_node, edge_id, weight, header)
       marker_array.markers.append(edge_marker)
       edge_id += 1
 

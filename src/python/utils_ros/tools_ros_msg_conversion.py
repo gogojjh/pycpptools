@@ -172,6 +172,25 @@ def convert_vec_to_rostf_scale(tx, ty, tz, qx, qy, qz, qw, header, child_frame_i
 		tf_msg.transform.rotation.w = qw
 		return tf_msg
 
+def convert_odom_to_rospose(odom):
+		pose = PoseStamped()
+		pose.header = odom.header
+		pose.pose = odom.pose.pose
+		return pose
+
+def convert_odom_to_rostf(odom):
+		tf_msg = TransformStamped()
+		tf_msg.header = odom.header
+		tf_msg.child_frame_id = odom.child_frame_id
+		tf_msg.transform.translation.x = odom.pose.pose.position.x
+		tf_msg.transform.translation.y = odom.pose.pose.position.y
+		tf_msg.transform.translation.z = odom.pose.pose.position.z
+		tf_msg.transform.rotation.x = odom.pose.pose.orientation.x
+		tf_msg.transform.rotation.y = odom.pose.pose.orientation.y
+		tf_msg.transform.rotation.z = odom.pose.pose.orientation.z
+		tf_msg.transform.rotation.w = odom.pose.pose.orientation.w
+		return tf_msg		
+
 ##### Visualization message
 def get_ros_marker_camera_frustum(header, position, orientation, length=10.0):
 		marker = Marker()
