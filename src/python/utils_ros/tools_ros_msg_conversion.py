@@ -7,6 +7,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, CompressedImage, PointCloud2
 from tf2_msgs.msg import TFMessage
 from visualization_msgs.msg import Marker
+import ros_numpy
 
 ##### Sensor data
 def convert_cvimg_to_rosimg(image, encoding, header, compressed=False):
@@ -61,6 +62,15 @@ def convert_pts_to_rospts(header, pts, intensity=None, color=None, label=None):
 		msg.row_step = msg.point_step * msg.width
 		msg.is_bigendian = False
 		return msg
+
+def convert_rospts_to_pts(msg):
+		"""Convert PointCloud2 message to numpy array."""
+		pc_array = ros_numpy.numpify(msg)
+		pc = np.zeros([len(pc_array), 3])
+		pc[:, 0] = pc_array['x']
+		pc[:, 1] = pc_array['y']
+		pc[:, 2] = pc_array['z']
+		return pc
 
 ##### Odometry
 def convert_rosodom_to_vec(odom, mode='xyzw'):
@@ -143,6 +153,12 @@ def convert_vec_to_rospose_scale(tx, ty, tz, qx, qy, qz, qw, header):
 		pose.pose.orientation.z = qz
 		pose.pose.orientation.w = qw
 		return pose
+
+def convert_vec_to_ros_tfmsg(trans, quat, header, child_frame_id, mode='xyzw'):
+	tf_msg = TFMessage()
+	tf_data = convert_vec_to_rostf(trans, quat, header, child_frame_id, mode)
+	tf_msg.transforms.append(tf_data)
+	return tf_msg
 
 def convert_vec_to_rostf(trans, quat, header, child_frame_id, mode='xyzw'):
 		if mode == 'xyzw':

@@ -6,6 +6,7 @@ import numpy as np
 import open3d as o3d
 
 from scipy.spatial.transform import Rotation
+import copy
 
 def estimate_pose_icp(source, target, current_transformation):
   threshold = 0.2
@@ -23,7 +24,7 @@ def estimate_pose_icp(source, target, current_transformation):
   # print("Applying point-to-plane registration")
   result_icp = o3d.pipelines.registration.registration_icp(
       source, target, threshold, current_transformation, 
-      o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+      o3d.pipelines.registration.TransformationEstimationPointToPlane(),
       o3d.pipelines.registration.ICPConvergenceCriteria(relative_fitness=1e-6,
                                                         relative_rmse=1e-6,
                                                         max_iteration=200))
@@ -48,10 +49,12 @@ def draw_registration_result(source, target, transformation):
 
 def crop_point_cloud(pcd):
   xyz = np.asarray(pcd.points)
-  indices = xyz[:, 2] <= 5
+  indices = np.abs(xyz[:, 0]) <= 50.0
   xyz = xyz[indices]
-  indices = xyz[:, 2] >= -10
-  xyz = xyz[indices]
+  indices = np.abs(xyz[:, 1]) <= 40.0
+  xyz = xyz[indices]  
+  indices = np.abs(xyz[:, 2]) <= 4.0
+  xyz = xyz[indices]    
   pcd = o3d.geometry.PointCloud()
   pcd.points = o3d.utility.Vector3dVector(xyz)
   # o3d.visualization.draw_geometries([pcd])
@@ -59,28 +62,40 @@ def crop_point_cloud(pcd):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Estimate camera pose using Open3D.')
-  parser.add_argument('--target_pcd', help='target_pcd', default='target.pcd') # reference frame
+  parser.add_argument('--target_pcd', help='target_pcd as the reference frame', default='target.pcd') # reference frame
   parser.add_argument('--src_pcd', help='src_pcd', default='src.pcd')
   args = parser.parse_args()
 
-  # Crop point cloud
+  # Read point clouds
   pcd_target = o3d.io.read_point_cloud(args.target_pcd)
-  pcd_target = crop_point_cloud(pcd_target)
   pcd_src = o3d.io.read_point_cloud(args.src_pcd)
-  pcd_src = crop_point_cloud(pcd_src)
 
-  # Set initial guess
-  quat_ini = np.array([0.5, 0.5, -0.5, 0.5]) # qw, qx, qy, qz
-  trans_ini = np.array([0.0, 0.0, 0.0])     # x, y, z
-  rot_matrix = Rotation.from_quat(np.roll(quat_ini, -1)).as_matrix() # [qw qx qy qz] -> [qx qy qz qw]
-  print(rot_matrix)
-
-  T_ini = np.eye(4, 4)
-  T_ini[:3, :3] = rot_matrix
-  T_ini[:3,  3] = trans_ini
+  # Set initial guess 
+  ##### To be changed
+  T_ini = np.array([0.757572, -0.606689, 0.240860, -6.709962,
+                    0.585685, 0.794683, 0.159539, 5.117188,
+                    -0.288198, 0.020206, 0.957358, 0.707165,
+                    0.000000, 0.000000, 0.000000, 1.000000]).reshape(4, 4)
   print('Initial Transform:\n', T_ini)
+  
+  # Crop point cloud
+  # pcd_target = crop_point_cloud(pcd_target)  
+  pcd_src.transform(T_ini)
+  # pcd_src = crop_point_cloud(pcd_src)
+  pcd_src.transform(np.linalg.inv(T_ini))
+
+  # Downsample
+  radius = 0.4
+  pcd_src = pcd_src.voxel_down_sample(radius)  
+  pcd_target = pcd_target.voxel_down_sample(radius)
 
   # Registration
   draw_registration_result(pcd_src, pcd_target, T_ini)
   T = estimate_pose_icp(pcd_src, pcd_target, T_ini)
   draw_registration_result(pcd_src, pcd_target, T)
+
+  # Result
+  T_result = copy.copy(T)
+  quat_result = Rotation.from_matrix(T_result[:3, :3]).as_quat()
+  trans_result = T_result[:3, 3]
+  print('quat_opt: ', quat_result, '\ntrans_opt: ', trans_result.T)
