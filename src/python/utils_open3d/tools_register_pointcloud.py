@@ -50,7 +50,7 @@ def crop_point_cloud(pcd):
   xyz = np.asarray(pcd.points)
   indices = xyz[:, 2] <= 5
   xyz = xyz[indices]
-  indices = xyz[:, 2] >= -10
+  indices = xyz[:, 2] >= 0.5
   xyz = xyz[indices]
   pcd = o3d.geometry.PointCloud()
   pcd.points = o3d.utility.Vector3dVector(xyz)
