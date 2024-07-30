@@ -129,10 +129,7 @@ def save_intrinsics_and_poses(output_dir, frame_paths, intrinsics, poses):
             translation_vector_inv = -rotation_matrix_inv @ np.array([tx, ty, tz])
             inverted_quat = R.from_matrix(rotation_matrix_inv).as_quat()
             ########## NOTE(gogojjh):
-            inverted_quat = np.array([0, 0, 0, 1])
-            inverted_pose = np.roll(inverted_quat, -1).tolist() + translation_vector_inv.tolist()
-            print(inverted_pose)
-            exit()
+            inverted_pose = np.roll(inverted_quat, 1).tolist() + translation_vector_inv.tolist()
             ##########
             f.write(f"{frame_path} {' '.join(map(str, inverted_pose))}\n")
 
