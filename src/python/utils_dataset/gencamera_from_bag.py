@@ -98,6 +98,7 @@ class DataGenerator:
 		parser.add_argument('--data_path', type=str, default='/tmp', help='Path to save data')
 		parser.add_argument('--dataset_type', type=str, default='matterport3d', help='Type of dataset (matterport3d, anymal_vlp, anymal_livox)')
 		parser.add_argument('--camera_type', type=str, default='habitat', help='Type of camera (habitat, kinect, zed)')
+		parser.add_argument('--output_format', type=str, default='general', help='Format: general, 3dmatch')
 		self.args = parser.parse_args()
 
 		# Set image type and conversion function based on dataset type
