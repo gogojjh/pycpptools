@@ -7,7 +7,6 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, CompressedImage, PointCloud2
 from tf2_msgs.msg import TFMessage
 from visualization_msgs.msg import Marker
-import ros_numpy
 
 ##### Sensor data
 def convert_cvimg_to_rosimg(image, encoding, header, compressed=False):
@@ -65,6 +64,7 @@ def convert_pts_to_rospts(header, pts, intensity=None, color=None, label=None):
 
 def convert_rospts_to_pts(msg):
 		"""Convert PointCloud2 message to numpy array."""
+		import ros_numpy
 		pc_array = ros_numpy.numpify(msg)
 		pc = np.zeros([len(pc_array), 3])
 		pc[:, 0] = pc_array['x']
