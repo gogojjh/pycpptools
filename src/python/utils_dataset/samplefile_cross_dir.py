@@ -30,8 +30,8 @@ def samplefile(dir1, dir2):
 def rearrangefile(dir):
     os.makedirs(os.path.join(dir, 'new_seq1'), exist_ok=True)
 
-    poses = np.loadtxt(os.path.join(dir, 'poses.txt'), dtype=object)
-    intrinsics = np.loadtxt(os.path.join(dir, 'intrinsics.txt'), dtype=object)
+    poses = np.loadtxt(os.path.join(dir, 'old_poses.txt'), dtype=object)
+    intrinsics = np.loadtxt(os.path.join(dir, 'old_intrinsics.txt'), dtype=object)
     
     new_poses = np.empty((1, 8), dtype=object)
     new_poses[0, :] = poses[0, :]
@@ -39,7 +39,7 @@ def rearrangefile(dir):
     new_intrinsics[0, :] = intrinsics[0, :]
 
     new_id = 0
-    img_filenames = os.listdir(os.path.join(dir, 'seq1'))
+    img_filenames = os.listdir(os.path.join(dir, 'old_seq1'))
     img_filenames.sort()
     for img_filename in img_filenames:
         if 'jpg' in img_filename:
@@ -54,11 +54,11 @@ def rearrangefile(dir):
 
             new_img_filename = f'frame_{new_id:05d}.jpg'
             new_img_path = os.path.join(dir, 'new_seq1', new_img_filename)
-            shutil.copy(os.path.join(dir,'seq1', rgb_img_filename), new_img_path)
+            shutil.copy(os.path.join(dir,'old_seq1', rgb_img_filename), new_img_path)
 
             new_depth_img_filename = f'frame_{new_id:05d}.zed.png'
             new_depth_img_path = os.path.join(dir, 'new_seq1', new_depth_img_filename)
-            shutil.copy(os.path.join(dir,'seq1', depth_img_filename), new_depth_img_path)
+            shutil.copy(os.path.join(dir,'old_seq1', depth_img_filename), new_depth_img_path)
 
             vec = poses[id + 1, :].reshape(1, 8)
             vec[0, 0] = f'seq1/frame_{new_id:05d}.jpg'
@@ -79,5 +79,5 @@ if __name__ == "__main__":
     # dir2 = '/Rocket_ssd/dataset/data_anymal/data_generation_20240731/out_general/seq_sample'
     # samplefile(dir1, dir2)
 
-    dir = '/Rocket_ssd/dataset/data_anymal/data_generation_20240731/test/s00009'
+    dir = '/Rocket_ssd/dataset/data_anymal/data_generation_20240731/test/s00000'
     rearrangefile(dir)
