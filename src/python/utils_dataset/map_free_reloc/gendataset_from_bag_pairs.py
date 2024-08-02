@@ -1,18 +1,12 @@
 '''
 Author: David-Willo davidwillo@foxmail.com
 Date: 2024-08-02 05:42:28
-LastEditTime: 2024-08-02 07:50:37
+LastEditTime: 2024-08-02 09:03:49
 LastEditors: David-Willo
-Jinhao HE (David Willo), IADC HKUST(GZ)
-Copyright (c) 2024 by davidwillo@foxmail.com, All Rights Reserved. 
-'''
-"""
-Author: Jinhao He
-Date: 2024-08-01
 Description: This script generates data consistent with map-free-reloc format from rosbag.
 Source: https://github.com/nianticlabs/map-free-reloc
-Version: 1.1
-"""
+Jinhao HE (David Willo)
+'''
 
 """Format of Map-Free-Reloc
 s004600/
@@ -45,7 +39,7 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-from matching import get_matcher
+from matching import get_matcher, viz2d
 
 device = 'cuda'  # or 'cpu'
 matcher = get_matcher('"xfeat-lg', device=device)  # Choose any of our ~20+ matchers listed below
@@ -259,16 +253,26 @@ def compute_covisibility_score_naive(image_pair):
     score = len(matches) / len(keypointsA)
     return score
 
-def compute_covisibility_score(image_pair):
-    img0, img1 = image_pair
+def compute_covisibility_score(paras):
+    img0, img1, out_dir, idx, viz_match = paras
 
     result = matcher(img0, img1)
     num_inliers = result['num_inliers']
+    num_matches = len(result['mkpts0'])
     total_keypoints = len(result['kpts0'])
-
+    #print(result['num_inliers'], len(result['mkpts0']), len(result['kpts0']))
+    # Visualization
+    if viz_match:
+        viz2d.plot_images([img0, img1])
+        viz2d.plot_matches(result['mkpts0'], result['mkpts1'], color="lime", lw=0.2)
+        viz2d.add_text(0, f"{len(result['mkpts1'])} matches", fs=20)
+        viz_path = os.path.join(out_dir, f"output_{idx}.png")
+        viz2d.save_plot(viz_path)
+        print(f"Viz saved in {viz_path}.")
+    
     if total_keypoints == 0:
         return 0.0
-    score = num_inliers / total_keypoints
+    score = num_matches / total_keypoints
     return score
 
 def load_images_cv2(frame_paths):
@@ -291,7 +295,7 @@ def load_images(frame_paths):
             images.append(img)
     return images
     
-def compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir):
+def compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir, viz_match=False):
     # Set multiprocessing start method to 'spawn'
     multiprocessing.set_start_method('spawn', force=True)
 
@@ -309,7 +313,11 @@ def compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir
     #     for task in tqdm(as_completed(tasks), total=len(tasks), desc="Processing images"):
     #         results.append(task.result())
 
-    tasks = [(images[i], images[j]) for i in range(num_images) for j in range(i + 1, num_images)]
+    #tasks = [(images[i], images[j]) for i in range(num_images) for j in range(i + 1, num_images)]
+    tasks = [(images[i], images[j], os.path.join(scene_dir, 'viz_match'), f'{i}_{j}', viz_match) for i in range(num_images) for j in range(i + 1, num_images)]
+    if viz_match:
+        # Ensure the visualization directory exists
+        os.makedirs(os.path.join(scene_dir, 'viz_match'), exist_ok=True)
 
     with ProcessPoolExecutor(max_workers=2) as executor:
         # Use map to submit tasks and collect results
@@ -331,7 +339,7 @@ def compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir
 
     np.savez(os.path.join(scene_dir, 'overlaps.npz'), idxs=np.array(idxs), overlaps=np.array(overlaps))
 
-def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_thresh, trans_thresh, rot_thresh_keyframes, trans_thresh_keyframes, image_topic, skip_images=False, validation_only=False):
+def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_thresh, trans_thresh, rot_thresh_keyframes, trans_thresh_keyframes, image_topic, skip_images=False, validation_only=False, viz_match=False):
     with open(camera_extrinsics, 'r') as f:
         camera_params = yaml.safe_load(f)
 
@@ -421,7 +429,7 @@ def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_
         all_frame_paths = new_frame_paths1 + new_frame_paths2
         
         # Compute covisibility score, i think too time sonsuming
-        compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir)
+        compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir, viz_match)
         
         # Adjust paths to be relative to the scene directory
         all_frame_paths = [os.path.join('seq0', os.path.basename(fp)) if 'seq0' in fp else os.path.join('seq1', os.path.basename(fp)) for fp in all_frame_paths]
@@ -445,6 +453,7 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', help='Output directory')
     parser.add_argument('--skip_images', action='store_true', default=False, help='skip extract images from bag')
     parser.add_argument('--validation_only', action='store_true', default=False, help='for validation set only, only consider first bag')
+    parser.add_argument('--viz_match', action='store_true', default=False, help='for matcher debug, save match visualization result')
     parser.add_argument('--trans_thresh_keyframes', type=float, default=30.0, help='Distance threshold in meters')
     parser.add_argument('--rot_thresh', type=float, default=40.0, help='Rotation threshold in degrees')
     parser.add_argument('--trans_thresh', type=float, default=5.0, help='Translation threshold in meters')
