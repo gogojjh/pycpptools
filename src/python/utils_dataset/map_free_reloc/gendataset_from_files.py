@@ -93,6 +93,19 @@ def project_point_cloud(points, intrinsics, image_shape):
     depth_image[y[valid_mask], x[valid_mask]] = z[valid_mask]
     return depth_image	
 
+def draw_images(image0, image1):
+	# Create a figure and a set of subplots
+	fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+	# Display the first image with a colorbar
+	im1 = axes[0].imshow(image0, cmap='viridis')
+	axes[0].axis('off')
+	fig.colorbar(im1, ax=axes[0])
+	# Display the second image with a colorbar
+	im2 = axes[1].imshow(image1, cmap='viridis')
+	axes[1].axis('off')
+	fig.colorbar(im2, ax=axes[1])	
+	plt.show()
+
 class DataGenerator:
 	def __init__(self):
 		# Initialize argument parser and add arguments
@@ -108,7 +121,8 @@ class DataGenerator:
 		self.poses = np.loadtxt(os.path.join(self.args.in_dir, 'poses.txt'))
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
 		self.kdtree = KDTree(self.poses[:, 1:4])			
-		self.keyframe_indices = [0]
+		# self.keyframe_indices = [0, 200, 450, 950, 750, 8150, 9000, 9450, 10600, 11500, 17150]
+		self.keyframe_indices =[200]
 		self.img_width, self.img_height = int(self.intrinsics[0, 4]), int(self.intrinsics[0, 5])
 			
 	def setup_directories(self):
@@ -119,7 +133,7 @@ class DataGenerator:
 		self.base_path = base_path
 
 	def run(self):
-		radius = 10.0
+		radius = 15.0
 		for scene_id, indice in enumerate(self.keyframe_indices):
 			result = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=radius)
 			result.sort()
@@ -129,9 +143,9 @@ class DataGenerator:
 			trans, quat = self.poses[indice, 1:4], self.poses[indice, 4:]
 			T_w_ref = convert_vec_to_matrix(trans, quat, 'xyzw')
 	
-			os.makedirs(os.path.join(self.base_path, f's{scene_id:05d}'), exist_ok=True)
-			os.makedirs(os.path.join(self.base_path, f's{scene_id:05d}', 'seq0'), exist_ok=True)
-			os.makedirs(os.path.join(self.base_path, f's{scene_id:05d}', 'seq1'), exist_ok=True)
+			os.makedirs(os.path.join(self.args.out_dir, f's{scene_id:05d}'), exist_ok=True)
+			os.makedirs(os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq0'), exist_ok=True)
+			os.makedirs(os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1'), exist_ok=True)
 			all_intrinsics, all_poses = np.empty((0, 7), dtype=object), np.empty((0, 8), dtype=object)
 			vec = np.empty((1, 7), dtype=object)
 			vec[0, 0], vec[0, 1:] = f'seq0/frame_{0:05d}.jpg', self.intrinsics[indice, :]
@@ -142,8 +156,8 @@ class DataGenerator:
 
 			rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{indice:06d}.color.jpg')
 			depth_img_path = os.path.join(self.args.in_dir, 'seq', f'{indice:06d}.depth.png')
-			new_rgb_img_path = os.path.join(self.base_path, f's{scene_id:05d}', 'seq0', f'frame_{0:05d}.jpg')
-			new_depth_img_path = os.path.join(self.base_path, f's{scene_id:05d}', 'seq0', f'frame_{0:05d}.zed.png')			
+			new_rgb_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq0', f'frame_{0:05d}.jpg')
+			new_depth_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq0', f'frame_{0:05d}.zed.png')			
 			os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 			os.system(f'cp {depth_img_path} {new_depth_img_path}')
 			new_img_id = 0
@@ -153,14 +167,15 @@ class DataGenerator:
 											  0, 0, 1]).reshape(3, 3)
 				T_w_target = convert_vec_to_matrix(self.poses[id, 1:4], self.poses[id, 4:], 'xyzw')
 				T_target_ref = np.linalg.inv(T_w_target) @ T_w_ref
+
 				fake_depth_map = np.zeros((self.img_height, self.img_width))
-				fake_depth_map.fill(10.0)
+				fake_depth_map.fill(7.0)
 				depth_points = depth_image_to_point_cloud(fake_depth_map, ref_intrinsics, [self.img_width, self.img_height])
 				transformed_depth_points = transform_point_cloud(depth_points, T_target_ref)
 				proj_depth_map = project_point_cloud(transformed_depth_points, target_intrinsics, [self.img_width, self.img_height])
 				valid_mask = proj_depth_map > 0
 				overlap = np.sum(valid_mask) / (self.img_width * self.img_height)
-				if overlap > 0.2:
+				if overlap > 0.4:
 					trans, quat = convert_matrix_to_vec(T_target_ref, 'xyzw')
 					vec = np.empty((1, 7), dtype=object)
 					vec[0, 0], vec[0, 1:] = f'seq1/frame_{new_img_id:05d}.jpg', self.intrinsics[id, :]
@@ -171,15 +186,15 @@ class DataGenerator:
 
 					rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{id:06d}.color.jpg')
 					depth_img_path = os.path.join(self.args.in_dir, 'seq', f'{id:06d}.depth.png')
-					new_rgb_img_path = os.path.join(self.base_path, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.jpg')
-					new_depth_img_path = os.path.join(self.base_path, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.zed.png')			
+					new_rgb_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.jpg')
+					new_depth_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.zed.png')			
 					os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 					os.system(f'cp {depth_img_path} {new_depth_img_path}')
 					new_img_id += 1
 				print(overlap)
 			np.savetxt(os.path.join(self.base_path, f's{scene_id:05d}', 'intrinsics.txt'), all_intrinsics, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f')
 			np.savetxt(os.path.join(self.base_path, f's{scene_id:05d}', 'poses.txt'), all_poses, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f %.9f')
-			input()
+			# input()
 
 if __name__ == '__main__':
 	data_generator = DataGenerator()
