@@ -1,7 +1,7 @@
 '''
 Author: David-Willo davidwillo@foxmail.com
 Date: 2024-08-02 05:42:28
-LastEditTime: 2024-08-02 09:03:49
+LastEditTime: 2024-08-02 17:33:31
 LastEditors: David-Willo
 Description: This script generates data consistent with map-free-reloc format from rosbag.
 Source: https://github.com/nianticlabs/map-free-reloc
@@ -157,25 +157,28 @@ def save_intrinsics_and_poses(output_dir, frame_paths, intrinsics, poses, relati
     first_rotation_matrix = R.from_quat([qx, qy, qz, qw]).as_matrix()
     first_rotation_matrix_inv = first_rotation_matrix.T
     first_translation_vector_inv = -first_rotation_matrix_inv @ np.array([tx, ty, tz])
-    
-    with open(os.path.join(output_dir, 'poses.txt'), 'w') as f:
-        for frame_path, pose in zip(frame_paths, poses):
-            tx, ty, tz, qx, qy, qz, qw = pose
-            rotation_matrix = R.from_quat([qx, qy, qz, qw]).as_matrix()
-            translation_vector = np.array([tx, ty, tz])
-            if relative:
-                # Compute the relative rotation and translation to the first pose
-                relative_rotation_matrix = first_rotation_matrix_inv @ rotation_matrix
-                relative_translation_vector = first_rotation_matrix_inv @ (translation_vector - first_translation_vector_inv)
-                rotation_matrix = relative_rotation_matrix
-                translation_vector = relative_translation_vector
-            
-            rotation_matrix_inv = rotation_matrix.T
-            translation_vector_inv = -rotation_matrix_inv @ translation_vector
-            inverted_quat = R.from_matrix(rotation_matrix_inv).as_quat()
-     
-            inverted_pose = np.roll(inverted_quat, 1).tolist() + translation_vector_inv.tolist()
-            f.write(f"{frame_path} {' '.join(map(str, inverted_pose))}\n")
+    os.makedirs(os.path.join(output_dir, 'fake_estimation'), exist_ok=True)
+    with open(os.path.join(output_dir, 'fake_estimation/poses.txt'), 'w') as est_f:
+        with open(os.path.join(output_dir, 'poses.txt'), 'w') as f:
+            for frame_path, pose in zip(frame_paths, poses):
+                tx, ty, tz, qx, qy, qz, qw = pose
+                rotation_matrix = R.from_quat([qx, qy, qz, qw]).as_matrix()
+                translation_vector = np.array([tx, ty, tz])
+                if relative:
+                    # Compute the relative rotation and translation to the first pose
+                    relative_rotation_matrix = first_rotation_matrix_inv @ rotation_matrix
+                    relative_translation_vector = first_rotation_matrix_inv @ translation_vector + first_translation_vector_inv
+                    rotation_matrix = relative_rotation_matrix
+                    translation_vector = relative_translation_vector
+                
+                rotation_matrix_inv = rotation_matrix.T
+                translation_vector_inv = -rotation_matrix_inv @ translation_vector
+                inverted_quat = R.from_matrix(rotation_matrix_inv).as_quat()
+        
+                inverted_pose = np.roll(inverted_quat, 1).tolist() + translation_vector_inv.tolist() 
+                f.write(f"{frame_path} {' '.join(map(str, inverted_pose))}\n")
+                # fake estimation file
+                est_f.write(f"{frame_path} {' '.join(map(str, inverted_pose+[1]))}\n")
 
 
 def is_pose_similar(pose1, pose2, trans_thresh=0.1, rotation_threshold=2*math.pi/180):
@@ -200,7 +203,7 @@ def find_closest_keyframe(ref_keyframes, target_keyframes, trans_thresh=15, rota
             # DW: actually should add None even if cannot find correspondence
     return closest_keyframes
     
-def find_neighbors(frame_paths, camera_poses, keyframe_pose, trans_thresh_keyframes, rotation_threshold):
+def find_neighbors(frame_paths, camera_poses, keyframe_pose, trans_thresh_keyframes, rotation_threshold, pick_ref=False):
     neighbors = []
     keyframe_index = None
     min_diff_t, min_diff_rot = 999, 2*math.pi
@@ -220,12 +223,15 @@ def find_neighbors(frame_paths, camera_poses, keyframe_pose, trans_thresh_keyfra
                 if trans_diff < min_diff_t :
                     min_diff_t = trans_diff
                     keyframe_index = len(neighbors) - 1
-                
-    if keyframe_index is not None:
-        keyframe = neighbors.pop(keyframe_index)
-        neighbors.insert(0, keyframe)
-    else:
-        raise
+    
+    # if we prefer the seq is in original order, dont pick ref, 
+    # but for validation file generation, we can pick keyframe as reference and move to front
+    if pick_ref:
+        if keyframe_index is not None:
+            keyframe = neighbors.pop(keyframe_index)
+            neighbors.insert(0, keyframe)
+        else:
+            raise
     return neighbors
     
 def compute_covisibility_score_naive(image_pair):
@@ -339,7 +345,7 @@ def compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir
 
     np.savez(os.path.join(scene_dir, 'overlaps.npz'), idxs=np.array(idxs), overlaps=np.array(overlaps))
 
-def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_thresh, trans_thresh, rot_thresh_keyframes, trans_thresh_keyframes, image_topic, skip_images=False, validation_only=False, viz_match=False):
+def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_thresh, trans_thresh, rot_thresh_keyframes, trans_thresh_keyframes, image_topic, skip_images=False, validation_only=False, viz_match=False, skip_overlap_check=False):
     with open(camera_extrinsics, 'r') as f:
         camera_params = yaml.safe_load(f)
 
@@ -396,15 +402,18 @@ def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_
     # Output the pose file and copy images
     for i, (kf1, kf2) in enumerate(zip(merged_keyframes1, closest_keyframes_to_1)):
         scene_dir = os.path.join(output_dir, f's{i:05d}')
+        estimation_dir = os.path.join(output_dir, 'fake_estimation')
         os.makedirs(scene_dir, exist_ok=True)
+        os.makedirs(estimation_dir, exist_ok=True)
 
         seq0_dir = os.path.join(scene_dir, 'seq0')
         seq1_dir = os.path.join(scene_dir, 'seq1')
         os.makedirs(seq0_dir, exist_ok=True)
         os.makedirs(seq1_dir, exist_ok=True)
 
-        
-        neighbors1 = find_neighbors(frame_paths1, camera_poses1, kf1, trans_thresh, rot_thresh)
+        # for seq0, only move keyframe to front as reference when validation only mode
+        neighbors1 = find_neighbors(frame_paths1, camera_poses1, kf1, trans_thresh, rot_thresh, pick_ref=validation_only)
+        # seq1 keep the original order
         neighbors2 = find_neighbors(frame_paths2, camera_poses2, kf2, trans_thresh, rot_thresh)
         
         
@@ -428,8 +437,9 @@ def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_
 
         all_frame_paths = new_frame_paths1 + new_frame_paths2
         
-        # Compute covisibility score, i think too time sonsuming
-        compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir, viz_match)
+        # Compute covisibility score, i think too time consuming
+        if not skip_overlap_check:
+            compute_pairwise_covisibility(all_frame_paths, seq0_dir, seq1_dir, scene_dir, viz_match)
         
         # Adjust paths to be relative to the scene directory
         all_frame_paths = [os.path.join('seq0', os.path.basename(fp)) if 'seq0' in fp else os.path.join('seq1', os.path.basename(fp)) for fp in all_frame_paths]
@@ -440,6 +450,7 @@ def main(bag1, bag2, lidar_ref1, lidar_ref2, camera_extrinsics, output_dir, rot_
                            
         
         save_intrinsics_and_poses(scene_dir, all_frame_paths, intrinsics, all_camera_poses)
+        os.system(f'mv {scene_dir}/fake_estimation/poses.txt {estimation_dir}/pose_s{i:05d}.txt')
         
 
 if __name__ == '__main__':
@@ -452,7 +463,8 @@ if __name__ == '__main__':
     parser.add_argument('camera_extrinsics', help='Camera extrinsics file')
     parser.add_argument('output_dir', help='Output directory')
     parser.add_argument('--skip_images', action='store_true', default=False, help='skip extract images from bag')
-    parser.add_argument('--validation_only', action='store_true', default=False, help='for validation set only, only consider first bag')
+    parser.add_argument('--validation_only', action='store_true', default=False, help='for validation set only, only keep single frame for seq0')
+    parser.add_argument('--skip_overlap_check', action='store_true', default=False, help='skip overlap check')
     parser.add_argument('--viz_match', action='store_true', default=False, help='for matcher debug, save match visualization result')
     parser.add_argument('--trans_thresh_keyframes', type=float, default=30.0, help='Distance threshold in meters')
     parser.add_argument('--rot_thresh', type=float, default=40.0, help='Rotation threshold in degrees')
@@ -464,4 +476,4 @@ if __name__ == '__main__':
      # Convert degrees to radians for rotation thresholds
     args.rot_thresh *= math.pi / 180.0
     args.rot_thresh_keyframes *= math.pi / 180.0
-    main(args.bag1, args.bag2, args.lidar_ref1, args.lidar_ref2, args.camera_extrinsics, args.output_dir, args.rot_thresh, args.trans_thresh, args.rot_thresh_keyframes, args.trans_thresh_keyframes, args.image_topic, args.skip_images, args.validation_only)
+    main(args.bag1, args.bag2, args.lidar_ref1, args.lidar_ref2, args.camera_extrinsics, args.output_dir, args.rot_thresh, args.trans_thresh, args.rot_thresh_keyframes, args.trans_thresh_keyframes, args.image_topic, args.skip_images, args.validation_only, args.skip_overlap_check)
