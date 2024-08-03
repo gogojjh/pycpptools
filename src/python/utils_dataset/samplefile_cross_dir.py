@@ -28,7 +28,7 @@ def samplefile(dir1, dir2):
     print(f"Copied every 50th file from {dir1} to {dir2}.")
 
 def rearrangefile(dir):
-    os.makedirs(os.path.join(dir, 'new_seq1'), exist_ok=True)
+    os.makedirs(os.path.join(dir, 'seq1'), exist_ok=True)
 
     poses = np.loadtxt(os.path.join(dir, 'old_poses.txt'), dtype=object)
     intrinsics = np.loadtxt(os.path.join(dir, 'old_intrinsics.txt'), dtype=object)
@@ -53,11 +53,11 @@ def rearrangefile(dir):
             depth_img_filename = img_filename.replace('jpg', 'zed.png')
 
             new_img_filename = f'frame_{new_id:05d}.jpg'
-            new_img_path = os.path.join(dir, 'new_seq1', new_img_filename)
+            new_img_path = os.path.join(dir, 'seq1', new_img_filename)
             shutil.copy(os.path.join(dir,'old_seq1', rgb_img_filename), new_img_path)
 
             new_depth_img_filename = f'frame_{new_id:05d}.zed.png'
-            new_depth_img_path = os.path.join(dir, 'new_seq1', new_depth_img_filename)
+            new_depth_img_path = os.path.join(dir, 'seq1', new_depth_img_filename)
             shutil.copy(os.path.join(dir,'old_seq1', depth_img_filename), new_depth_img_path)
 
             vec = poses[id + 1, :].reshape(1, 8)
@@ -70,8 +70,8 @@ def rearrangefile(dir):
 
             print(f'Copied image id {id} to {new_id}')
             new_id += 1
-    np.savetxt(os.path.join(dir, 'new_intrinsics.txt'), new_intrinsics, fmt='%s %s %s %s %s %s %s')
-    np.savetxt(os.path.join(dir, 'new_poses.txt'), new_poses, fmt='%s %s %s %s %s %s %s %s')
+    np.savetxt(os.path.join(dir, 'intrinsics.txt'), new_intrinsics, fmt='%s %s %s %s %s %s %s')
+    np.savetxt(os.path.join(dir, 'poses.txt'), new_poses, fmt='%s %s %s %s %s %s %s %s')
 
 if __name__ == "__main__":
     # Define the source and destination directories
@@ -79,5 +79,5 @@ if __name__ == "__main__":
     # dir2 = '/Rocket_ssd/dataset/data_anymal/data_generation_20240731/out_general/seq_sample'
     # samplefile(dir1, dir2)
 
-    dir = '/Rocket_ssd/dataset/data_anymal/data_generation_20240731/test/s00000'
+    dir = '/Rocket_ssd/dataset/data_anymal/data_generation_20240731/test/s00001'
     rearrangefile(dir)
