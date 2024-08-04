@@ -135,8 +135,12 @@ class DataGenerator:
 
 	def run(self):
 		for scene_id, indice in enumerate(self.keyframe_indices):
+			closed_pose_id = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=0.01)
+			closed_pose_id.sort()
 			result = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=self.args.radius)
 			result.sort()
+			result = [pose_id for pose_id in result if pose_id not in closed_pose_id]
+
 			ref_intrinsics = np.array([self.intrinsics[indice, 0], 0, self.intrinsics[indice, 2], 
 							  		   0, self.intrinsics[indice, 1], self.intrinsics[indice, 3], 
 									   0, 0, 1]).reshape(3, 3)
