@@ -3,6 +3,7 @@ Author: Jianhao Jiao
 Date: 2024-07-10
 Description: This script generates camera data including RGB images, depth images, semantic images, and poses a ROS bag
 Version: 1.0
+Usage: python gencamera_from_bag.py --config /path/config_anymal.yaml --out_dir /data_anymal
 """
 
 """Format of generate dataset
@@ -50,7 +51,7 @@ class DataGenerator:
 	def __init__(self):
 		# Initialize argument parser and add arguments
 		parser = argparse.ArgumentParser(description="Camera data collector for synchronized RGBD images and poses.")
-		parser.add_argument('--config', type=str, default='/tmp/config.yaml', help='Path to configuration file')
+		parser.add_argument('--config', type=str, default='/dataset/config_anymal.yaml', help='Path to configuration file')
 		parser.add_argument('--out_dir', type=str, default='/tmp', help='Path to save data')
 		self.args = parser.parse_args()
 
@@ -74,16 +75,6 @@ class DataGenerator:
 		base_odom_sub = message_filters.Subscriber(config['odometry_topic'], Odometry)
 		ts = message_filters.ApproximateTimeSynchronizer([camera_info_sub, rgb_sub, depth_sub, semantic_sub, base_odom_sub], 100, 0.1, allow_headerless=True)
 		ts.registerCallback(self.image_callback)
-
-		# Setup IMU subscriber
-		# imu_sub = rospy.Subscriber(self.args.imu_topic, Imu, self.imu_callback)
-
-		# Initialize TF listener
-		# self.tf_listener = TransformListener()
-
-		# Initialize pose tracking variables
-		# self.last_quat = np.array([1.0, 0.0, 0.0, 0.0])
-		# self.last_t = np.array([-1000.0, -1000.0, -1000.0])
 
 		# NOTE(gogojjh): transform the SLAM poses on the base_frame to the camera_frame
 		quat_base_cam = np.array(config['quat_base_cam'])
@@ -115,6 +106,8 @@ class DataGenerator:
 		if depth_image.encoding == "32FC1":
 			cv_image = np.nan_to_num(cv_image, nan=0.0, posinf=1e3, neginf=0.0)
 			cv_image = (cv_image * 1000).astype(np.uint16)
+		if depth_image.encoding == "mono8":
+			cv_image = (cv_image / 25.641025 * 1000).astype(np.uint16) 
 		cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.depth.png', cv_image)
 		cv_image = self.RGB_CV_FUNCTION(semantic_image, "bgr8")
 		cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.semantic.png', cv_image)
@@ -133,46 +126,9 @@ class DataGenerator:
 			path = f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.pose.txt'
 			np.savetxt(path, T_w_cam, fmt='%.5f')
 
-		# Compute relative displacement and save to topological map if necessary
-		# dis_t, dis_angle = compute_relative_dis(self.last_t, self.last_quat, trans, quat, 'xyzw')
-		# if dis_t > self.args.topo_int_trans or dis_angle > self.args.topo_int_rot:
-		# 	print(f'Save map: dis_t: {dis_t:.3f}m, dis_angle: {dis_angle:.3f}deg')
-
-		# 	cv_image = self.RGB_CV_FUNCTION(rgb_image, "bgr8")
-		# 	cv2.imwrite(f'{self.args.out_dir}/map_{self.args.camera_type}/rgb/{self.map_camera_poses.shape[0]:06d}.png', cv_image)
-		# 	cv_image = bridge.imgmsg_to_cv2(depth_image, "passthrough")
-		# 	if depth_image.encoding == "32FC1":
-		# 		cv_image = (cv_image * 1000).astype(np.uint16)
-		# 	cv2.imwrite(f'{self.args.out_dir}/map_{self.args.camera_type}/depth/{self.map_camera_poses.shape[0]:06d}.png', cv_image)
-		# 	cv_image = self.RGB_CV_FUNCTION(semantic_image, "bgr8")
-		# 	cv2.imwrite(f'{self.args.out_dir}/map_{self.args.camera_type}/semantic/{self.map_camera_poses.shape[0]:06d}.png', cv_image)
-			
-		# 	self.map_camera_poses = np.vstack([self.map_camera_poses, 
-		# 																 np.array([timestamp.to_sec(), 
-		# 																	trans[0], trans[1], trans[2], 
-		# 																	quat[0], quat[1], quat[2], quat[3]])])	
-			
-		# 	# DEBUG(gogojjh):
-		# 	T_w_map0 = convert_vec_to_matrix(self.last_t, self.last_quat, 'xyzw')
-		# 	T_w_map1 = convert_vec_to_matrix(trans, quat, 'xyzw')
-		# 	T_map0_map1 = np.linalg.inv(T_w_map0) @ T_w_map1
-		# 	print(T_map0_map1)
-
-		# 	self.last_t, self.last_quat = trans, quat
-
-	# def imu_callback(self, msg):
-	# 	self.imu_measurements = np.vstack([self.imu_measurements, 
-	# 																	 np.array([msg.header.stamp.to_sec(),
-	# 																		msg.linear_acceleration.x,
-	# 																		msg.linear_acceleration.y,
-	# 																		msg.linear_acceleration.z,
-	# 																		msg.angular_velocity.x,
-	# 																		msg.angular_velocity.y,
-	# 																		msg.angular_velocity.z])])
-
 	def setup_directories(self):
-		base_path = f'{self.args.out_dir}_{self.out_data_format}'
-		paths = [base_path, f'{base_path}/seq']
+		base_path = os.path.join(self.args.out_dir, f'out_{self.out_data_format}')
+		paths = [self.args.out_dir, base_path, f'{base_path}/seq']
 		for path in paths:
 				os.makedirs(path, exist_ok=True)
 		self.base_path = base_path

@@ -36,7 +36,6 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../'))
 from utils_math.tools_eigen import convert_matrix_to_vec, convert_vec_to_matrix
 
-
 def depth_image_to_point_cloud(depth_image, intrinsics, image_shape):
     """
     Convert a depth image to a point cloud.
@@ -122,7 +121,7 @@ class DataGenerator:
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
 		self.kdtree = KDTree(self.poses[:, 1:4])			
 		# self.keyframe_indices = [0, 200, 450, 950, 750, 8150, 9000, 9450, 10600, 11500, 17150]
-		self.keyframe_indices =[200]
+		self.keyframe_indices =[450]
 		self.img_width, self.img_height = int(self.intrinsics[0, 4]), int(self.intrinsics[0, 5])
 			
 	def setup_directories(self):
@@ -132,10 +131,9 @@ class DataGenerator:
 			os.makedirs(path, exist_ok=True)
 		self.base_path = base_path
 
-	def run(self):
-		radius = 15.0
+	def run(self, args):
 		for scene_id, indice in enumerate(self.keyframe_indices):
-			result = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=radius)
+			result = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=args.radius)
 			result.sort()
 			ref_intrinsics = np.array([self.intrinsics[indice, 0], 0, self.intrinsics[indice, 2], 
 							  		   0, self.intrinsics[indice, 1], self.intrinsics[indice, 3], 
@@ -161,7 +159,7 @@ class DataGenerator:
 			os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 			os.system(f'cp {depth_img_path} {new_depth_img_path}')
 			new_img_id = 0
-			for id in result[::10]:
+			for id in result[::25]:
 				target_intrinsics = np.array([self.intrinsics[id, 0], 0, self.intrinsics[id, 2], 
 											  0, self.intrinsics[id, 1], self.intrinsics[id, 3], 
 											  0, 0, 1]).reshape(3, 3)
@@ -197,7 +195,11 @@ class DataGenerator:
 			# input()
 
 if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description="Your program description")
+	parser.add_argument('--radius', type=float, default=1.0, help='Radius value')
+	args = parser.parse_args()
+
 	data_generator = DataGenerator()
 	data_generator.setup_directories() 
-	data_generator.run()
+	data_generator.run(args)
 
