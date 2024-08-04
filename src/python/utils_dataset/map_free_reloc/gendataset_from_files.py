@@ -3,6 +3,7 @@ Author: Jianhao Jiao
 Date: 2024-08-2
 Description: This script generates camera data including RGB images, depth images, semantic images, and poses a ROS bag
 Version: 1.0
+Usage: python gendataset_from_files.py --config config_matterport3d.yaml --in_dir out_general --out_dir test --radius 7.0 --fake_depth 7.0
 """
 
 """Format of input dataset
@@ -112,6 +113,8 @@ class DataGenerator:
 		parser.add_argument('--config', type=str, default='/tmp/config.yaml', help='Path to configuration file')
 		parser.add_argument('--in_dir', type=str, default='/tmp', help='Path to load data')
 		parser.add_argument('--out_dir', type=str, default='/tmp', help='Path to save data')
+		parser.add_argument('--radius', type=float, default=1.0, help='Radius value')
+		parser.add_argument('--fake_depth', type=float, default=7.0, help='Fake depth value')		
 		self.args = parser.parse_args()
 
 		with open(self.args.config, 'r') as file:
@@ -119,9 +122,8 @@ class DataGenerator:
 
 		self.poses = np.loadtxt(os.path.join(self.args.in_dir, 'poses.txt'))
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
-		self.kdtree = KDTree(self.poses[:, 1:4])			
-		# self.keyframe_indices = [0, 200, 450, 950, 750, 8150, 9000, 9450, 10600, 11500, 17150]
-		self.keyframe_indices =[450]
+		self.kdtree = KDTree(self.poses[:, 1:4])
+		self.keyframe_indices = config['keyframe_indices']
 		self.img_width, self.img_height = int(self.intrinsics[0, 4]), int(self.intrinsics[0, 5])
 			
 	def setup_directories(self):
@@ -131,9 +133,9 @@ class DataGenerator:
 			os.makedirs(path, exist_ok=True)
 		self.base_path = base_path
 
-	def run(self, args):
+	def run(self):
 		for scene_id, indice in enumerate(self.keyframe_indices):
-			result = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=args.radius)
+			result = self.kdtree.query_ball_point(self.poses[indice, 1:4], r=self.args.radius)
 			result.sort()
 			ref_intrinsics = np.array([self.intrinsics[indice, 0], 0, self.intrinsics[indice, 2], 
 							  		   0, self.intrinsics[indice, 1], self.intrinsics[indice, 3], 
@@ -158,22 +160,41 @@ class DataGenerator:
 			new_depth_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq0', f'frame_{0:05d}.zed.png')			
 			os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 			os.system(f'cp {depth_img_path} {new_depth_img_path}')
+
+			depth_img0 = np.array(Image.open(depth_img_path)) / 1000.0
 			new_img_id = 0
-			for id in result[::25]:
+			for id in result[::5]:
 				target_intrinsics = np.array([self.intrinsics[id, 0], 0, self.intrinsics[id, 2], 
 											  0, self.intrinsics[id, 1], self.intrinsics[id, 3], 
 											  0, 0, 1]).reshape(3, 3)
 				T_w_target = convert_vec_to_matrix(self.poses[id, 1:4], self.poses[id, 4:], 'xyzw')
 				T_target_ref = np.linalg.inv(T_w_target) @ T_w_ref
 
-				fake_depth_map = np.zeros((self.img_height, self.img_width))
-				fake_depth_map.fill(7.0)
-				depth_points = depth_image_to_point_cloud(fake_depth_map, ref_intrinsics, [self.img_width, self.img_height])
-				transformed_depth_points = transform_point_cloud(depth_points, T_target_ref)
-				proj_depth_map = project_point_cloud(transformed_depth_points, target_intrinsics, [self.img_width, self.img_height])
-				valid_mask = proj_depth_map > 0
-				overlap = np.sum(valid_mask) / (self.img_width * self.img_height)
-				if overlap > 0.4:
+				rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{id:06d}.color.jpg')
+				depth_img_path = os.path.join(self.args.in_dir, 'seq', f'{id:06d}.depth.png')
+				# Without GT depth
+				if 'anymal' in self.args.config:
+					fake_depth_map = np.zeros((self.img_height, self.img_width))
+					fake_depth_map.fill(self.args.fake_depth)
+					depth_points = depth_image_to_point_cloud(fake_depth_map, ref_intrinsics, [self.img_width, self.img_height])
+					transformed_depth_points = transform_point_cloud(depth_points, T_target_ref)
+					proj_depth_map = project_point_cloud(transformed_depth_points, target_intrinsics, [self.img_width, self.img_height])
+					valid_mask = proj_depth_map > 0
+					overlap = np.sum(valid_mask) / (self.img_width * self.img_height)
+					overlap_th = 0.4
+				# With GT depth
+				else:
+					depth_img1 = np.array(Image.open(depth_img_path)) / 1000.0
+					depth_points = depth_image_to_point_cloud(depth_img0, ref_intrinsics, [self.img_width, self.img_height])
+					transformed_depth_points = transform_point_cloud(depth_points, T_target_ref)
+					proj_depth_map = project_point_cloud(transformed_depth_points, target_intrinsics, [self.img_width, self.img_height])					
+					valid_mask = proj_depth_map > 0
+					valid_pixel = np.abs(proj_depth_map[valid_mask] - depth_img1[valid_mask]) < 0.1
+					overlap = np.sum(valid_pixel) / (self.img_width * self.img_height)
+					overlap_th = 0.1 # good threshold for opposite view
+
+				if overlap > overlap_th:
+					# draw_images(proj_depth_map, depth_img1)
 					trans, quat = convert_matrix_to_vec(T_target_ref, 'xyzw')
 					vec = np.empty((1, 7), dtype=object)
 					vec[0, 0], vec[0, 1:] = f'seq1/frame_{new_img_id:05d}.jpg', self.intrinsics[id, :]
@@ -182,24 +203,18 @@ class DataGenerator:
 					vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq1/frame_{new_img_id:05d}.jpg', np.roll(quat, 1), trans
 					all_poses = np.vstack((all_poses, vec))
 
-					rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{id:06d}.color.jpg')
-					depth_img_path = os.path.join(self.args.in_dir, 'seq', f'{id:06d}.depth.png')
 					new_rgb_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.jpg')
 					new_depth_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.zed.png')			
 					os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 					os.system(f'cp {depth_img_path} {new_depth_img_path}')
 					new_img_id += 1
-				print(overlap)
+				print(f'overlap: {overlap:.5f}')
 			np.savetxt(os.path.join(self.base_path, f's{scene_id:05d}', 'intrinsics.txt'), all_intrinsics, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f')
 			np.savetxt(os.path.join(self.base_path, f's{scene_id:05d}', 'poses.txt'), all_poses, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f %.9f')
 			# input()
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description="Your program description")
-	parser.add_argument('--radius', type=float, default=1.0, help='Radius value')
-	args = parser.parse_args()
-
 	data_generator = DataGenerator()
 	data_generator.setup_directories() 
-	data_generator.run(args)
+	data_generator.run()
 
