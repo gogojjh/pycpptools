@@ -3,7 +3,6 @@ Author: Jianhao Jiao
 Date: 2024-08-2
 Description: This script generates camera data including RGB images, depth images, semantic images, and poses a ROS bag
 Version: 1.0
-Usage: python gendataset_from_files.py --config config_matterport3d.yaml --in_dir out_general --out_dir test --radius 7.0 --fake_depth 7.0
 """
 
 """Format of input dataset
@@ -114,7 +113,8 @@ class DataGenerator:
 		parser.add_argument('--in_dir', type=str, default='/tmp', help='Path to load data')
 		parser.add_argument('--out_dir', type=str, default='/tmp', help='Path to save data')
 		parser.add_argument('--radius', type=float, default=1.0, help='Radius value')
-		parser.add_argument('--fake_depth', type=float, default=7.0, help='Fake depth value')		
+		parser.add_argument('--fake_depth', type=float, default=7.0, help='Fake depth value')
+		print('Usage: python gendataset_from_files.py --config config_matterport3d.yaml --in_dir out_general --out_dir test --radius 7.0 --fake_depth 7.0')
 		self.args = parser.parse_args()
 
 		with open(self.args.config, 'r') as file:
@@ -124,6 +124,10 @@ class DataGenerator:
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
 		self.kdtree = KDTree(self.poses[:, 1:4])
 		self.keyframe_indices = config['keyframe_indices']
+		if 'start_indice' in config:
+			self.start_indice = config['start_indice']
+		else:
+			self.start_indice = 0
 		self.img_width, self.img_height = int(self.intrinsics[0, 4]), int(self.intrinsics[0, 5])
 			
 	def setup_directories(self):
@@ -168,6 +172,7 @@ class DataGenerator:
 			depth_img0 = np.array(Image.open(depth_img_path)) / 1000.0
 			new_img_id = 0
 			for id in result[::5]:
+				if id < self.start_indice: continue
 				target_intrinsics = np.array([self.intrinsics[id, 0], 0, self.intrinsics[id, 2], 
 											  0, self.intrinsics[id, 1], self.intrinsics[id, 3], 
 											  0, 0, 1]).reshape(3, 3)
