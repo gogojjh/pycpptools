@@ -49,13 +49,9 @@ def draw_registration_result(source, target, transformation):
 
 def crop_point_cloud(pcd):
   xyz = np.asarray(pcd.points)
-<<<<<<< HEAD
   indices = xyz[:, 2] <= 5
   xyz = xyz[indices]
   indices = xyz[:, 2] >= 0.5
-=======
-  indices = np.abs(xyz[:, 0]) <= 50.0
->>>>>>> fa6feb3212ea0b3d26e964482f645356beb83372
   xyz = xyz[indices]
   indices = np.abs(xyz[:, 1]) <= 40.0
   xyz = xyz[indices]  
