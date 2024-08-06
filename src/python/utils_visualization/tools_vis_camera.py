@@ -1,12 +1,10 @@
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import argparse
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from pycpptools.src.python.utils_math.tools_eigen import convert_vec_to_matrix, convert_matrix_to_vec
+from pycpptools.src.python.utils_math.tools_eigen import convert_vec_to_matrix
 
-def plot_cameras(poses, sample_rate):
+def plot_cameras(poses, sample_rate, title='Camera Observations'):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -29,17 +27,13 @@ def plot_cameras(poses, sample_rate):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.grid(True)
-    plt.title('Camera Observations')
-    plt.show()
-
-def main(args):
-    # Load poses from file
-    poses = np.loadtxt(args.path_pose)[:, 1:] # tx, ty, tz, qx, qy, qz, qw
-    plot_cameras(poses, args.sample_rate)
+    plt.title(title)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plot camera poses.')
     parser.add_argument('--path_pose', type=str, required=True, help='Path to the poses file')
     parser.add_argument('--sample_rate', type=int, default=10, help='Sample rate for the poses')
     args = parser.parse_args()
-    main(args)
+
+    poses = np.loadtxt(args.path_pose)[:, 1:] # tx, ty, tz, qx, qy, qz, qw
+    plot_cameras(poses, args.sample_rate)
