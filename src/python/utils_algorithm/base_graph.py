@@ -15,11 +15,13 @@ class BaseGraph:
   def read_edge_list(self, path_edge_list):
     edges_A_B_weight = np.loadtxt(path_edge_list, dtype=float)
     for edge in edges_A_B_weight:
-      if (self.get_node(edge[0]) is not None) and (self.get_node(edge[1]) is not None):
-        node1 = self.get_node(edge[0])
-        node2 = self.get_node(edge[1])
-        self.add_edge_directed(node1, node2, edge[2])
-        self.add_edge_directed(node2, node1, edge[2])
+      node_id0, node_id1 = int(edge[0]), int(edge[1])
+      weight = edge[2]
+      if (self.get_node(node_id0) is not None) and (self.get_node(node_id1) is not None):
+        node1 = self.get_node(node_id0)
+        node2 = self.get_node(node_id1)
+        self.add_edge_directed(node1, node2, weight)
+        self.add_edge_directed(node2, node1, weight)
 
   # Add a new node to the graph if it doesn't already exist
   def add_node(self, new_node):
@@ -46,7 +48,7 @@ class BaseGraph:
       from_node.add_edge(to_node, weight)  # Add the new edge with the specified weight
 
   # Return the node with the given id if it exists, otherwise return None
-  def get_node(self, id):
+  def get_node(self, id: int):
     if id in self.nodes:
       return self.nodes[id]
     else:
