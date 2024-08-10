@@ -111,8 +111,8 @@ def convert_vec_to_rosodom(trans, quat, header, child_frame_id, mode='xyzw'):
 	elif mode == 'wxyz':
 		odom = convert_vec_to_rosodom_scale(
 			trans[0], trans[1], trans[2], 
-	quat[3], quat[0], quat[1], quat[2], 
-	header, child_frame_id
+			quat[3], quat[0], quat[1], quat[2], 
+			header, child_frame_id
 		)
 	return odom
 
