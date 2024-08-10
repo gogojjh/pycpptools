@@ -31,7 +31,7 @@ def save_odom_tum_format(args):
 		qw = msg.pose.pose.orientation.w
 		odom_list.append([timestamp, tx, ty, tz, qx, qy, qz, qw])
 	bag.close()
-	np.savetxt(args.output_odom_path, np.array(odom_list))
+	np.savetxt(args.output_odom_path, np.array(odom_list), '%.9f')
 
 if __name__ == '__main__':
 	rospy.init_node('tools_bag_save_odom', anonymous=True)
