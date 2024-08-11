@@ -15,9 +15,17 @@ class StampedPoses:
             return None
         return idx, self.data[idx]
 
+    def time_exists(self, query_time):
+        idx = bisect.bisect_left(self.data, (query_time,))
+        if idx != len(self.data) and self.data[idx][0] == query_time:
+            return True
+        return False
+
     def add(self, time, pose: Union[gtsam.Pose3, gtsam.Pose2, np.ndarray]):
-        # Insert the (time, pose) tuple in the correct position to maintain order
-        bisect.insort(self.data, (time, pose))
+        if self.time_exists(time):
+            bisect.insort(self.data, (time + 1e-6, pose))
+        else:
+            bisect.insort(self.data, (time, pose))
 
     def find_closest(self, query_time):
         if not self.data:

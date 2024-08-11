@@ -7,6 +7,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, CompressedImage, PointCloud2
 from tf2_msgs.msg import TFMessage
 from visualization_msgs.msg import Marker
+from scipy.spatial.transform import Rotation
 
 ##### Sensor data
 def convert_cvimg_to_rosimg(image, encoding, header, compressed=False):
@@ -101,6 +102,23 @@ def convert_rosodom_to_vec(odom, mode='xyzw'):
 		)
 	return trans, quat
 
+def convert_rosodom_to_matrix(odom):
+	trans = np.array([
+		odom.pose.pose.position.x, 
+		odom.pose.pose.position.y, 
+		odom.pose.pose.position.z]
+	)
+	quat = np.array([
+		odom.pose.pose.orientation.x, 
+		odom.pose.pose.orientation.y, 
+		odom.pose.pose.orientation.z, 
+		odom.pose.pose.orientation.w]
+	)
+	T = np.eye(4)
+	T[:3, :3] = Rotation.from_quat(quat).as_matrix()
+	T[:3, 3] = trans
+	return T
+
 def convert_vec_to_rosodom(trans, quat, header, child_frame_id, mode='xyzw'):
 	if mode == 'xyzw':
 		odom = convert_vec_to_rosodom_scale(
@@ -185,6 +203,50 @@ def convert_vec_to_rostf_scale(tx, ty, tz, qx, qy, qz, qw, header, child_frame_i
 	tf_msg.transform.rotation.z = qz
 	tf_msg.transform.rotation.w = qw
 	return tf_msg
+
+def convert_rostf_to_vec(tf_msg, mode='xyzw'):
+	if mode == 'xyzw':
+		trans = np.array([
+			tf_msg.transform.translation.x, 
+			tf_msg.transform.translation.y, 
+			tf_msg.transform.translation.z]
+		)
+		quat = np.array([
+			tf_msg.transform.rotation.x, 
+			tf_msg.transform.rotation.y, 
+			tf_msg.transform.rotation.z, 
+			tf_msg.transform.rotation.w]
+		)
+	else:
+		trans = np.array([
+			tf_msg.transform.translation.x, 
+			tf_msg.transform.translation.y, 
+			tf_msg.transform.translation.z]
+		)
+		quat = np.array([
+			tf_msg.transform.rotation.w, 
+			tf_msg.transform.rotation.x, 
+			tf_msg.transform.rotation.y, 
+			tf_msg.transform.rotation.z]
+		)
+	return trans, quat
+
+def convert_rostf_to_matrix(tf_msg):
+	trans = np.array([
+		tf_msg.transform.translation.x, 
+		tf_msg.transform.translation.y, 
+		tf_msg.transform.translation.z]
+	)
+	quat = np.array([
+		tf_msg.transform.rotation.x, 
+		tf_msg.transform.rotation.y, 
+		tf_msg.transform.rotation.z, 
+		tf_msg.transform.rotation.w]
+	)
+	T = np.eye(4)
+	T[:3, :3] = Rotation.from_quat(quat).as_matrix()
+	T[:3, 3] = trans
+	return T
 
 def convert_odom_to_rospose(odom):
 	pose = PoseStamped()
