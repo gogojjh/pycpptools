@@ -26,11 +26,12 @@ def convert_rosimg_to_cvimg(img_msg):
 		compressed = True
 	else:
 		compressed = False
-
 	if compressed:
-		cv_image = bridge.compressedimgmsg_to_cv2(img_msg, "passthrough")
+		cv_image = bridge.compressed_imgmsg_to_cv2(img_msg, "rgb8")
 	else:
 		cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")
+		if img_msg.encoding == "32FC1":
+			cv_image = np.nan_to_num(cv_image, nan=0.0)
 	return cv_image
 
 def convert_pts_to_rospts(header, pts, intensity=None, color=None, label=None):
