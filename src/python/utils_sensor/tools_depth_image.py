@@ -69,3 +69,27 @@ def draw_images(image0, image1):
 	axes[1].axis('off')
 	fig.colorbar(im2, ax=axes[1])	
 	plt.show()
+
+if __name__ == "__main__":
+    from PIL import Image
+    # Read the image and depth image
+    rgb_image = np.array(Image.open('/Titan/dataset/data_apmp/hkustgz_campus/test/s00002/seq0/frame_00000.jpg')).astype(np.uint8)
+    depth_image = np.array(Image.open('/Titan/dataset/data_apmp/hkustgz_campus/test/s00002/seq0/frame_00000.map.png')).astype(np.float32) / 1000.0
+
+    # Provide the intrinsics matrix
+    fx = 901.6750451937118
+    fy = 901.71399226011
+    cx = 620.7069465485994
+    cy = 378.55998030157434
+    image_width = 1280
+    image_height = 720
+    image_shape = (image_width, image_height)
+    intrinsics = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
+
+    # Convert depth image to point cloud
+    points = depth_image_to_point_cloud(depth_image, intrinsics, image_shape)
+    
+    import open3d as o3d
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    o3d.io.write_point_cloud("/Titan/dataset/data_apmp/hkustgz_campus/test/s00002/seq0/frame_00000.pcd", pcd)
