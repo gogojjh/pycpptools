@@ -5,7 +5,7 @@ import sys
 
 import rospy
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Point, PoseArray
+from geometry_msgs.msg import Point, PoseArray, PointStamped
 from std_msgs.msg import Header
 from nav_msgs.msg import Odometry, Path
 import tf2_ros
@@ -123,6 +123,14 @@ def publish_shortest_path(path, header, pub_shortest_path):
     marker_array.markers.append(edge_marker)
     edge_id += 1
   pub_shortest_path.publish(marker_array)
+
+def publish_waypoint(waypoint_pos, header, pub_waypoint):
+  point_stamped = PointStamped()
+  point_stamped.header = header
+  point_stamped.point.x = waypoint_pos[0]
+  point_stamped.point.y = waypoint_pos[1]
+  point_stamped.point.z = waypoint_pos[2]
+  pub_waypoint.publish(point_stamped)
 
 class TestRosVisualization:
   def __init__(self):

@@ -1,4 +1,5 @@
 import numpy as np
+import pycpptools.src.python.utils_math as pytool_math
 
 class BaseNode:
 	def __init__(self, id, trans=np.zeros(3), quat=np.array([0.0, 0.0, 0.0, 1.0])):
@@ -43,3 +44,9 @@ class BaseNode:
 
 	def get_next_node(self):
 		return self.next_node
+	
+	def compute_distance(self, node):
+		# Compute the Euclidean distance between two nodes based on their poses
+		dis_trans, dis_angle = pytool_math.tools_eigen.compute_relative_dis(self.trans, self.quat, node.trans, node.quat)
+		return dis_trans, dis_angle
+		

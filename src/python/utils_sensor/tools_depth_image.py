@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import minimize
 
 def depth_image_to_point_cloud(depth_image, intrinsics, image_shape):
     """
@@ -70,26 +72,107 @@ def draw_images(image0, image1):
 	fig.colorbar(im2, ax=axes[1])	
 	plt.show()
 
+def depth_alignment(A, B, delta=0.1):
+    """
+    Compute the scale factor s using the provided equation with a robust M-estimator, remove outliers
+    Args:
+                    A (np.ndarray): Reference matrix (depth_image1).
+                    B (np.ndarray): Matrix to be scaled (depth_image2).
+    Returns:
+                    float: Computed scale factor.
+    """
+
+    def huber_loss(residual, delta):
+        """
+        Huber loss function.
+        Args:
+                        residual (np.ndarray): Residuals.
+                        delta (float): Delta parameter for Huber loss.
+        Returns:
+                        float: Huber loss value.
+        """
+        return np.where(
+            np.abs(residual) <= delta,
+            0.5 * residual**2,
+            delta * (np.abs(residual) - 0.5 * delta),
+        )
+
+    def objective_function(s):
+        """
+        Objective function to minimize.
+        Args:
+                        s (float): Scale factor.
+        Returns:
+                        float: Sum of Huber loss for residuals.
+        """
+        residual = A - s * B
+        return np.sum(huber_loss(residual, delta))
+
+    result = minimize(objective_function, x0=1.0)
+    return result.x[0]
+
+def compute_residual_matrix(A, B, s):
+    def huber_loss(residual, delta=1.0):
+        """
+        Huber loss function.
+        Args:
+                        residual (np.ndarray): Residuals.
+                        delta (float): Delta parameter for Huber loss.
+        Returns:
+                        float: Huber loss value.
+        """
+        return np.where(
+            np.abs(residual) <= delta,
+            0.5 * residual**2,
+            delta * (np.abs(residual) - 0.5 * delta),
+        )
+    return huber_loss(A - s * B)
+
+def plot_images(image1, image2, title1="Image 1", title2="Image 2", save_path=None):
+    """
+    Plot two images side by side with colorbars.
+
+    Parameters:
+    image1 (numpy.ndarray): The first image.
+    image2 (numpy.ndarray): The second image.
+    title1 (str): Title for the first image.
+    title2 (str): Title for the second image.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+    im1 = axes[0].imshow(image1, cmap="viridis")
+    axes[0].set_title(title1)
+    axes[0].axis("off")
+    fig.colorbar(im1, ax=axes[0])
+
+    im2 = axes[1].imshow(
+        image2, cmap="viridis", vmin=im1.get_clim()[0], vmax=im1.get_clim()[1]
+    )
+    axes[1].set_title(title2)
+    axes[1].axis("off")
+    fig.colorbar(im2, ax=axes[1])
+
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+
 if __name__ == "__main__":
     from PIL import Image
-    # Read the image and depth image
-    rgb_image = np.array(Image.open('/Titan/dataset/data_apmp/hkustgz_campus/test/s00002/seq0/frame_00000.jpg')).astype(np.uint8)
-    depth_image = np.array(Image.open('/Titan/dataset/data_apmp/hkustgz_campus/test/s00002/seq0/frame_00000.map.png')).astype(np.float32) / 1000.0
+    """Read the image and depth image"""
+    rgb_image = np.array(Image.open('/Titan/dataset/data_apmp/hkustgz_campus/test/s00000/seq0/frame_00000.jpg')).astype(np.uint8)
+    depth_image = np.array(Image.open('/Titan/dataset/data_apmp/hkustgz_campus/test/s00000/seq0/frame_00000.ray_neighbor.png')).astype(np.float32) / 1000.0
 
     # Provide the intrinsics matrix
-    fx = 901.6750451937118
-    fy = 901.71399226011
-    cx = 620.7069465485994
-    cy = 378.55998030157434
-    image_width = 1280
-    image_height = 720
+    # fx, fy, cx, cy, image_width, image_height = 542.790830000, 542.790830000, 481.301150000, 271.850070000, 960, 540
+    fx, fy, cx, cy, image_width, image_height = 913.896, 912.277, 638.954, 364.884, 1280, 720
+    # fx, fy, cx, cy, image_width, image_height = 542.884160000, 542.884160000, 481.300450000, 271.850280000, 960, 540
     image_shape = (image_width, image_height)
     intrinsics = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
-
-    # Convert depth image to point cloud
     points = depth_image_to_point_cloud(depth_image, intrinsics, image_shape)
     
     import open3d as o3d
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
-    o3d.io.write_point_cloud("/Titan/dataset/data_apmp/hkustgz_campus/test/s00002/seq0/frame_00000.pcd", pcd)
+    o3d.io.write_point_cloud("/Titan/dataset/data_apmp/hkustgz_campus/test/s00000/seq0/frame_00000.ray_neighbor.pcd", pcd)

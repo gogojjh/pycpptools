@@ -7,6 +7,7 @@ import unittest
 
 from utils_algorithm.base_node import BaseNode as Node
 from utils_algorithm.base_graph import BaseGraph as Graph
+import copy
 
 def dijk_shortest_path(graph, start_node, goal_node):
     """
