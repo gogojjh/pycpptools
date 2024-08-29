@@ -122,7 +122,6 @@ def plot_trajectories(args, sgt, slo, svl, spf):
     pu.plot_trajectory_top_spot(ax, sgt_data[0, 1:4].reshape(1, -1), PALLETE[4], 'Start Point', 1.0, marker='*', markersize=7.0, zorder=10)
     pu.plot_trajectory_top_spot(ax, sgt_data[-1, 1:4].reshape(1, -1), PALLETE[4], 'End Point', 1.0, marker='^', markersize=5.5, zorder=10)
     pu.plot_trajectory_top_spot(ax, spf_data_w_vloc_trig[:, 1:4], PALLETE[1], None, 1.0, marker='+', markersize=9.0, zorder=0)
-    # pu.plot_trajectory_top_spot(ax, spf_data_w_vloc_trig[:, 1:4], PALLETE[1], None, 1.0, marker='x', markersize=9.0, zorder=0)
 
     plt.legend(bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.)
     fig.tight_layout()
