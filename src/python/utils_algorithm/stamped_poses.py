@@ -1,3 +1,8 @@
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../utils_math'))
+from tools_eigen import convert_vec_to_matrix, convert_matrix_to_vec
+
 from typing import Union
 import numpy as np
 import bisect
@@ -22,6 +27,10 @@ class StampedPoses:
         return False
 
     def add(self, time, pose: Union[gtsam.Pose3, gtsam.Pose2, np.ndarray]):
+        """
+        :param time: timestamp
+        :param pose: gtsam.Pose3, gtsam.Pose2, numpy array (np.ndarray)
+        """        
         if self.time_exists(time):
             bisect.insort(self.data, (time + 1e-6, pose))
         else:
@@ -48,6 +57,21 @@ class StampedPoses:
             return idx-1, before
         else:
             return idx, after
+        
+    def to_numpy(self):
+        if not isinstance(self.data[0][1], np.ndarray):
+            print('Not support conversion to numpy for non-numpy poses')
+            return None
+        time_numpy = np.array([data[0] for data in self.data])
+        pose_numpy = np.array([data[1] for data in self.data])
+        combined_numpy = np.hstack((time_numpy.reshape(-1, 1), pose_numpy))
+        return combined_numpy
+
+def convert_tum_to_stamped_pose(tum_poses):
+    stamped_poses = StampedPoses()
+    for pose in tum_poses:
+        stamped_poses.add(pose[0], pose[1:])
+    return stamped_poses
 
 if __name__ == "__main__":
     poses = StampedPoses()
