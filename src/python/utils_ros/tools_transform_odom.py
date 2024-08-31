@@ -17,19 +17,39 @@ args = parser.parse_args()
 print("Arguments:\n{}".format('\n'.join(
 	['-{}: {}'.format(k, v) for k, v in args.__dict__.items()])))
 
-trans_base_local_odom = np.array([0.0, 0.0, 0.75])
-quat_base_local_odom = np.array([-0.500, 0.500, -0.500, 0.500])
-T_base_local_odom = convert_vec_to_matrix(trans_base_local_odom, quat_base_local_odom, mode='xyzw')
+###############################
+# Matterport3d
+trans = np.array([0, 0, 0])
+quat = np.array([-0.500, 0.500, -0.500, 0.500])
+T_sensor_cam = convert_vec_to_matrix(trans, quat, mode='xyzw')
+# T_offset = T_sensor_cam
+###############################
+
+###############################
+# Anymal
+trans = np.array([-0.377, -0.001, -0.482])
+quat = np.array([-0.013, -0.141, -0.008, 0.990])
+T_livox_base = convert_vec_to_matrix(trans, quat, mode='xyzw')
+# T_offset = T_livox_base
+
+trans = np.array([0.004, 0.018, -0.024])
+quat = np.array([-0.509, 0.453, -0.526, 0.509])
+T_livox_cam = convert_vec_to_matrix(trans, quat, mode='xyzw')
+# T_offset = T_livox_cam
+###############################
 
 def transform_odom(args):
 	poses = np.loadtxt(args.in_odom_path)
 	new_poses = np.zeros_like(poses)
+
+	trans, quat = poses[0][1:4], poses[0][4:8]
+	T0 = convert_vec_to_matrix(trans, quat, mode='xyzw')
 	for i, pose in enumerate(poses):
 		time, trans, quat = pose[0], pose[1:4], pose[4:8]
 		T_world_sensor_sensor = convert_vec_to_matrix(trans, quat, mode='xyzw')
-		T_world_base_sensor = T_base_local_odom @ T_world_sensor_sensor
+		T = T_offset @ np.linalg.inv(T0) @ T_world_sensor_sensor @ np.linalg.inv(T_offset)
 		new_poses[i, 0] = time
-		new_poses[i, 1:4], new_poses[i, 4:8] = convert_matrix_to_vec(T_world_base_sensor, mode='xyzw')
+		new_poses[i, 1:4], new_poses[i, 4:8] = convert_matrix_to_vec(T, mode='xyzw')
 	np.savetxt(args.out_odom_path, new_poses, '%.9f')
 
 if __name__ == '__main__':
@@ -38,3 +58,4 @@ if __name__ == '__main__':
 	else:
 		print('Unsupported format: {}'.format(args.format))
 		exit(1)
+

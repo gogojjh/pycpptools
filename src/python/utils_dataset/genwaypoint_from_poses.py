@@ -7,11 +7,11 @@ def poses_to_waypoints(poses, sample=1):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process waypoints and poses.')
-    parser.add_argument('--input_pose', type=str, required=True, help='Path to the poses file')
-    parser.add_argument('--output_waypoint', type=str, required=True, help='Path to the waypoints file')
+    parser.add_argument('--in_pose', type=str, required=True, help='Path to the poses file')
+    parser.add_argument('--out_waypoint', type=str, required=True, help='Path to the waypoints file')
     args = parser.parse_args()
 
-    poses = np.loadtxt(args.input_pose)
+    poses = np.loadtxt(args.in_pose)
     print(f"Pose shape: {poses.shape}")
     waypoints = poses_to_waypoints(poses, sample=100)
 
@@ -25,8 +25,9 @@ if __name__ == "__main__":
         "end_header",
     ]
 
-    with open(args.output_waypoint, 'w') as f:
+    with open(args.out_waypoint, 'w') as f:
         for line in lines:
             f.write(line + '\n')
         for waypoint in waypoints:
             f.write(f"{waypoint[0]:.5f} {waypoint[1]:.5f} {waypoint[2]:.5f}\n")
+    print(f"Waypoint shape: {waypoints.shape}")

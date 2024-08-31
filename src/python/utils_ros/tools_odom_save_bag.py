@@ -33,19 +33,19 @@ def save_odom_to_rosbag(args):
         quat = pose[4:]
 
         header = Header()
-        header.frame_id = 'map_global'
+        header.frame_id = 'map'
         header.stamp = rospy.Time.from_sec(timestamp)
 
-        odom = convert_vec_to_rosodom(trans, quat, header, 'fastlio_body')
-        outbag.write('/Odometry_global', odom, header.stamp)    
+        odom = convert_vec_to_rosodom(trans, quat, header, 'zed2_left_camera_optical_frame')
+        outbag.write('/AirSLAM/odometry', odom, header.stamp)    
 
         pose_msg = convert_vec_to_rospose(trans, quat, header)
         path.header = header
         path.poses.append(pose_msg)
-        outbag.write('/path_global', path, header.stamp)
+        outbag.write('/AirSLAM/path', path, header.stamp)
 
-        tf_msg = convert_vec_to_ros_tfmsg(trans, quat, header, 'fastlio_body')
-        outbag.write('/tf', tf_msg, header.stamp)
+        # tf_msg = convert_vec_to_ros_tfmsg(trans, quat, header, 'zed2_left_camera_optical_frame')
+        # outbag.write('/tf', tf_msg, header.stamp)
     outbag.close()
 
 if __name__ == '__main__':

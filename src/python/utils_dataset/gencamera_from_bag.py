@@ -26,6 +26,19 @@ ucl_east/
     camera-intrinsics.txt (format: 3x3 intrinsics matrix)
 """
 
+"""Format of euroc dataset
+ucl_east/
+    seq-01/
+        cam0/data/
+			timestamp1.png (nsec)
+			timestamp2.png (nsec)
+			...
+		cam1/data/
+			timestamp1.png (nsec)
+			timestamp2.png (nsec)
+			...
+"""
+
 import os
 import argparse
 import numpy as np
@@ -68,13 +81,20 @@ class DataGenerator:
 		rospy.init_node('data_generator')
 
 		# Setup subscribers and synchronizer for image and odometry topics
-		camera_info_sub = message_filters.Subscriber(config['camera_info_topic'], CameraInfo)
-		rgb_sub = message_filters.Subscriber(config['rgb_topic'], self.RGB_IMAGE_TYPE)
-		depth_sub = message_filters.Subscriber(config['depth_topic'], Image)
-		semantic_sub = message_filters.Subscriber(config['semantic_topic'], self.RGB_IMAGE_TYPE)
-		base_odom_sub = message_filters.Subscriber(config['odometry_topic'], Odometry)
-		ts = message_filters.ApproximateTimeSynchronizer([camera_info_sub, rgb_sub, depth_sub, semantic_sub, base_odom_sub], 100, 0.1, allow_headerless=True)
-		ts.registerCallback(self.image_callback)
+		if self.out_data_format == 'euroc':
+			# Subscribe to stereo camera topics
+			left_rgb_sub = message_filters.Subscriber(config['left_rgb_topic'], self.RGB_IMAGE_TYPE)
+			right_rgb_sub = message_filters.Subscriber(config['right_rgb_topic'], self.RGB_IMAGE_TYPE)
+			ts = message_filters.ApproximateTimeSynchronizer([left_rgb_sub, right_rgb_sub], 100, 0.1, allow_headerless=True)
+			ts.registerCallback(self.stereo_image_callback)
+		else:
+			camera_info_sub = message_filters.Subscriber(config['camera_info_topic'], CameraInfo)
+			rgb_sub = message_filters.Subscriber(config['rgb_topic'], self.RGB_IMAGE_TYPE)
+			depth_sub = message_filters.Subscriber(config['depth_topic'], Image)
+			semantic_sub = message_filters.Subscriber(config['semantic_topic'], self.RGB_IMAGE_TYPE)
+			base_odom_sub = message_filters.Subscriber(config['odometry_topic'], Odometry)
+			ts = message_filters.ApproximateTimeSynchronizer([camera_info_sub, rgb_sub, depth_sub, semantic_sub, base_odom_sub], 100, 0.1, allow_headerless=True)
+			ts.registerCallback(self.image_callback)
 
 		# NOTE(gogojjh): transform the SLAM poses on the base_frame to the camera_frame
 		quat_base_cam = np.array(config['quat_base_cam'])
@@ -126,12 +146,27 @@ class DataGenerator:
 			path = f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.pose.txt'
 			np.savetxt(path, T_w_cam, fmt='%.5f')
 
+	def stereo_image_callback(self, left_rgb_image, right_rgb_image):
+		print(f'stereo_image_callback: {self.camera_poses.shape[0]}')
+		left_timestamp = left_rgb_image.header.stamp
+		right_timestamp = right_rgb_image.header.stamp
+		cv_image = self.RGB_CV_FUNCTION(left_rgb_image, "bgr8")
+		cv2.imwrite(f'{self.base_path}/cam0/data/{self.suffix}{int(left_timestamp.secs*1e9 + left_timestamp.nsecs):19d}.png', cv_image)
+		cv_image = self.RGB_CV_FUNCTION(right_rgb_image, "bgr8")
+		cv2.imwrite(f'{self.base_path}/cam1/data/{self.suffix}{int(right_timestamp.secs*1e9 + right_timestamp.nsecs):19d}.png', cv_image)
+
 	def setup_directories(self):
 		base_path = os.path.join(self.args.out_dir, f'out_{self.out_data_format}')
-		paths = [self.args.out_dir, base_path, f'{base_path}/seq']
-		for path in paths:
+		if self.out_data_format == "euroc":
+			paths = [self.args.out_dir, base_path, f'{base_path}/cam0/data', f'{base_path}/cam1/data']
+			for path in paths:
 				os.makedirs(path, exist_ok=True)
-		self.base_path = base_path
+			self.base_path = base_path
+		else:
+			paths = [self.args.out_dir, base_path, f'{base_path}/seq']
+			for path in paths:
+				os.makedirs(path, exist_ok=True)
+			self.base_path = base_path
 		if self.out_data_format == '3dmatch':
 			self.suffix = 'frame-'
 		else:

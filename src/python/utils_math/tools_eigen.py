@@ -105,13 +105,15 @@ def test_tools_eigen():
 	print(vec_q)
 
 	# Do transformation
-	vec_p1 = np.array([0.037981, 0.065102, -0.114576])
-	vec_q1 = np.array([-0.000782, -0.131110, -0.009875, 0.991318])
+	vec_p1 = np.array([0.023, -0.000, -0.002])
+	vec_q1 = np.array([0.502, -0.498, 0.499, 0.501])
 	T1 = convert_vec_to_matrix(vec_p1, vec_q1, mode='wxyz')
+	print(T1)
 
-	vec_p2 = np.array([0.011, -0.060, -0.015])
-	vec_q2 = np.array([0.000, -0.025, 0.000, 1.000])
+	vec_p2 = np.array([-0.097, -0.000, -0.002])
+	vec_q2 = np.array([0.502, -0.498, 0.499, 0.501])
 	T2 = convert_vec_to_matrix(vec_p2, vec_q2, mode='xyzw')
+	print(T2)
 
 	T = T1 @ T2
 	vec_p, vec_q = convert_matrix_to_vec(T, mode='wxyz')

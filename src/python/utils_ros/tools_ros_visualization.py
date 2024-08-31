@@ -115,7 +115,7 @@ def publish_shortest_path(path, header, pub_shortest_path):
   for node in path:
     if node.get_next_node() is None: break
     edge_marker = create_edge_marker(node, node.get_next_node(), edge_id, 1.0, header)
-    edge_marker.scale.x = 0.08
+    edge_marker.scale.x = 0.2
     edge_marker.color.a = 0.5
     edge_marker.color.r = 0.0
     edge_marker.color.g = 1.0
