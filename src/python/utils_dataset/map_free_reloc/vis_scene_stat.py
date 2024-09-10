@@ -1,3 +1,11 @@
+"""
+Usage:
+
+python vis_scene_stat.py --dataset /Rocket_ssd/dataset/data_topo_loc/matterport3d/map_free_eval/test/ --dataset_name Matterport3d --sample_rate 1
+python vis_scene_stat.py --dataset /Rocket_ssd/dataset/data_topo_loc/ucl_campus/map_free_eval/test/ --dataset_name UCLCampus --sample_rate 1
+python vis_scene_stat.py --dataset /Rocket_ssd/dataset/data_topo_loc/hkustgz_campus/map_free_eval/test/ --dataset_name HKUSTGZCampus --sample_rate 1
+"""
+
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../utils_visualization"))
