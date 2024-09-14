@@ -9,8 +9,7 @@ import numpy as np
 import cv2
 
 device = 'cuda' # 'cpu'
-matcher = get_matcher('superglue', device=device)  # superpoint+superglue
-img_size = 512
+matcher = get_matcher('superglue', device=device, max_num_keypoints=4096)  # superpoint+superglue
 
 def get_pair_dict(pair_path):
 	file_dict = {}
@@ -99,7 +98,6 @@ def main():
 				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, resize1, resize2)
 				total_time_k_pairs[i + 1].append(comp_times)
 			if args.debug and len(total_time_k_pairs[1]) > 60: break
-		if args.debug: break
 
 	for k, v in total_time_k_pairs.items():
 		if len(v) == 0: continue
