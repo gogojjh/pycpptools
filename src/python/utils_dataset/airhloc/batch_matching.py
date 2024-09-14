@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../ima
 from matching import get_matcher
 import time
 import numpy as np
+import cv2
 
 device = 'cuda' # 'cpu'
 matcher = get_matcher('superglue', device=device)  # superpoint+superglue
@@ -46,7 +47,6 @@ def main():
 	parser.add_argument('--dataset_path', type=str, help='Path_to_dataset')
 	parser.add_argument('--pair_path', type=str, help='Path_to_pairs.txt')
 	parser.add_argument('--k_retrieve', type=int, default=1, help='Number of items to retrieve: 1, 2, 3, ..., 30')
-	parser.add_argument("--resize", type=int, default=None, nargs="+", help="Resizing shape for images (WxH)")
 	args = parser.parse_args()
 
 	scenes = [d for d in os.listdir(args.pair_path) if os.path.isdir(os.path.join(args.pair_path, d))]
@@ -66,8 +66,19 @@ def main():
 			pair_dict = get_pair_dict(pair_path)
 			print(f'Number of Reference: {len(pair_dict.keys())}')
 
+		# Get the size of the image
+		img_path = os.path.join(scene_path, pair_dict[list(pair_dict.keys())[0]][0])
+		img = cv2.imread(img_path)
+		img_width, img_height = img.shape[1], img.shape[0]
+		print(f'Image size: {img_width} x {img_height}')
+		if args.dataset_name == '7scenes':
+			resize = (img_height, img_width) # HxW
+		elif args.dataset_name == 'aachen':
+			resize = (int(img_height * img_width / 1024), 1024)
+		elif args.dataset_name == 'cambridge':
+			resize = (int(img_height * img_width / 1600), 1600)
+
 		# Perform matching on every k pairs w.r.t. every reference image
-		comp_time_k_pairs = []
 		for seq2 in pair_dict.keys():
 			ref_img_path = os.path.join(scene_path, seq2)
 			seq1_list = pair_dict[seq2]
@@ -75,10 +86,14 @@ def main():
 			comp_times = 0
 			for i in range(args.k_retrieve):
 				tar_img_path = os.path.join(scene_path, seq1_list[i])
-				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, args.resize)
+				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, resize)
 				total_time_k_pairs[i + 1].append(comp_times)
+			break
+		# break
+
 	for k, v in total_time_k_pairs.items():
 		if len(v) == 0: continue
+		if k != 1 and k != 2 and k != 3 and k !=4 and k != 5 and k != 10 and k != 20 and k != 30: continue
 		v = v[1:] # Remove the first element (outlier)
 		avg_time = sum(v) / len(v)
 		print(f'K={k}: {avg_time}ms')

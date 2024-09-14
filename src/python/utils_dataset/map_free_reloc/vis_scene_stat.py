@@ -118,6 +118,9 @@ if __name__ == "__main__":
     # Load dataset
     all_scenes = os.listdir(args.dataset)
     all_scenes.sort()
+
+    num_ref = 0
+    num_query = 0
     for scene in all_scenes:
         scene_path = os.path.join(args.dataset, scene)
         if not os.path.isdir(scene_path): continue
@@ -141,3 +144,8 @@ if __name__ == "__main__":
         plt.savefig(os.path.join(args.dataset, '../scene_stat', '{}_poses.pdf'.format(scene)))
         plt.close()
         # break
+
+        num_ref += 1
+        num_query += len(poses) - 1
+
+    print(Fore.GREEN + 'Total {} (reference) scenes, {} query images'.format(num_ref, num_query))
