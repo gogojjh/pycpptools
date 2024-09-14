@@ -29,11 +29,11 @@ def get_pair_dict(pair_path):
 def list_folders(path):
 	return [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
 
-def perform_matching(matcher, path_img1, path_img2, resize):
+def perform_matching(matcher, path_img1, path_img2, resize1, resize2):
 	str1, str2 = path_img1.split('/')[-1], path_img2.split('/')[-1]
 	# print(f'Matching between {str1} and {str2}')
-	img0 = matcher.load_image(path_img1, resize=resize)
-	img1 = matcher.load_image(path_img2, resize=resize)
+	img0 = matcher.load_image(path_img1, resize=resize1)
+	img1 = matcher.load_image(path_img2, resize=resize2)
 	start_time = time.time()
 	result = matcher(img0, img1)
 	comp_time = time.time() - start_time
@@ -41,9 +41,28 @@ def perform_matching(matcher, path_img1, path_img2, resize):
 	# print(f'Number of inliers: {num_inliers}')
 	return comp_time * 1000
 
+def get_resize(img_path, args):
+	img = cv2.imread(img_path)
+	img_width, img_height = img.shape[1], img.shape[0]
+	if args.dataset_name == '7scenes':
+		resize = (img_height, img_width) # HxW
+	elif args.dataset_name == 'cambridge':
+		if img_width > 1024:
+			resize = (int(img_height / (img_width / 1024)), 1024)
+		else:
+			resize = (img_height, img_width)
+	elif args.dataset_name == 'aachen_v1_1':
+		if img_width > 1600:
+			resize = (int(img_height / (img_width / 1600)), 1600)
+		else:
+			resize = (img_height, img_width)
+	# print(f'Image size: {img_width} x {img_height}')
+	# print(resize)
+	return resize
+
 def main():
 	parser = argparse.ArgumentParser(description='Process some integers.')
-	parser.add_argument('--dataset_name', type=str, help='Dataset name: 7scenes, aachen, cambridge')
+	parser.add_argument('--dataset_name', type=str, help='Dataset name: 7scenes, aachen_v1_1, cambridge')
 	parser.add_argument('--dataset_path', type=str, help='Path_to_dataset')
 	parser.add_argument('--pair_path', type=str, help='Path_to_pairs.txt')
 	parser.add_argument('--k_retrieve', type=int, default=1, help='Number of items to retrieve: 1, 2, 3, ..., 30')
@@ -67,29 +86,19 @@ def main():
 			pair_dict = get_pair_dict(pair_path)
 			print(f'Number of Reference: {len(pair_dict.keys())}')
 
-		# Get the size of the image
-		img_path = os.path.join(scene_path, pair_dict[list(pair_dict.keys())[0]][0])
-		img = cv2.imread(img_path)
-		img_width, img_height = img.shape[1], img.shape[0]
-		print(f'Image size: {img_width} x {img_height}')
-		if args.dataset_name == '7scenes':
-			resize = (img_height, img_width) # HxW
-		elif args.dataset_name == 'aachen':
-			resize = (int(img_height * img_width / 1024), 1024)
-		elif args.dataset_name == 'cambridge':
-			resize = (int(img_height * img_width / 1600), 1600)
-
 		# Perform matching on every k pairs w.r.t. every reference image
 		for seq2 in pair_dict.keys():
 			ref_img_path = os.path.join(scene_path, seq2)
+			resize1 = get_resize(ref_img_path, args)
 			seq1_list = pair_dict[seq2]
 			# Perform matching w.r.t. a specific reference image
 			comp_times = 0
 			for i in range(args.k_retrieve):
 				tar_img_path = os.path.join(scene_path, seq1_list[i])
-				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, resize)
+				resize2 = get_resize(tar_img_path, args)
+				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, resize1, resize2)
 				total_time_k_pairs[i + 1].append(comp_times)
-			if args.debug: break
+			if args.debug and len(total_time_k_pairs[1]) > 60: break
 		if args.debug: break
 
 	for k, v in total_time_k_pairs.items():
