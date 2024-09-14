@@ -47,6 +47,7 @@ def main():
 	parser.add_argument('--dataset_path', type=str, help='Path_to_dataset')
 	parser.add_argument('--pair_path', type=str, help='Path_to_pairs.txt')
 	parser.add_argument('--k_retrieve', type=int, default=1, help='Number of items to retrieve: 1, 2, 3, ..., 30')
+	parser.add_argument('--debug', action='store_true', help='Debug mode')
 	args = parser.parse_args()
 
 	scenes = [d for d in os.listdir(args.pair_path) if os.path.isdir(os.path.join(args.pair_path, d))]
@@ -88,8 +89,8 @@ def main():
 				tar_img_path = os.path.join(scene_path, seq1_list[i])
 				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, resize)
 				total_time_k_pairs[i + 1].append(comp_times)
-			break
-		# break
+			if args.debug: break
+		if args.debug: break
 
 	for k, v in total_time_k_pairs.items():
 		if len(v) == 0: continue
