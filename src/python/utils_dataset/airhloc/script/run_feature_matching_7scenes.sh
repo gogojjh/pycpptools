@@ -3,6 +3,6 @@
 # 7Scenes, we retain the original resolution of 640x480 pixels.
 python batch_feature_matching.py \
 --dataset_name 7scenes \
---dataset_path /Rocket_ssd/dataset/7scenes/ \
---pair_path /Rocket_ssd/dataset/airhloc/7scenes/ \
---k_retrieve 1
+--dataset_path /Titan/dataset/7scenes/ \
+--pair_path /Titan/dataset/airhloc/7scenes/ \
+--k_retrieve 30

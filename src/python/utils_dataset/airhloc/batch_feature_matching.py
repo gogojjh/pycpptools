@@ -9,7 +9,8 @@ import numpy as np
 import cv2
 
 device = 'cuda' # 'cpu'
-matcher = get_matcher('superglue', device=device, max_num_keypoints=4096)  # superpoint+superglue
+str_matcher = "superpoint-lg" # superpoint, superpoint-lg
+matcher = get_matcher(str_matcher, device=device, max_num_keypoints=4096)  # superpoint+superglue
 
 def get_pair_dict(pair_path):
 	file_dict = {}
@@ -97,19 +98,20 @@ def main():
 				resize2 = get_resize(tar_img_path, args)
 				comp_times += perform_matching(matcher, ref_img_path, tar_img_path, resize1, resize2)
 				total_time_k_pairs[i + 1].append(comp_times)
+			# Not run for the rest of the pairs
 			if args.debug and len(total_time_k_pairs[1]) > 60: break
 
+	results = np.zeros((0, 2))
 	for k, v in total_time_k_pairs.items():
 		if len(v) == 0: continue
 		if k != 1 and k != 2 and k != 3 and k !=4 and k != 5 and k != 10 and k != 20 and k != 30: continue
 		v = v[1:] # Remove the first element (outlier)
 		avg_time = sum(v) / len(v)
-		print(f'K={k}: {avg_time}ms')
-		np.savetxt(os.path.join(args.pair_path, f'total_matching_time_{k}.txt'), 
+		print(f'K={k}: Averaged matching time: {avg_time}ms')
+		np.savetxt(os.path.join(args.pair_path, f'total_matching_time_{str_matcher}_{k}.txt'), 
 				   np.array(v), fmt='%.5f')
-		np.savetxt(os.path.join(args.pair_path, f'average_matching_time_{k}.txt'), 
-				   np.array([avg_time]), fmt='%.5f')
-		print(f'Averaged matching time: {avg_time}ms')
+		results = np.vstack((results, np.array([k, avg_time])))
+	np.savetxt(os.path.join(args.pair_path, f'average_matching_time_{str_matcher}.txt'), results, fmt='%.2f')
 
 if __name__ == "__main__":
 	main()

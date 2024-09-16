@@ -58,9 +58,11 @@ def plot_cameras_arrow(poses, sample_rate, title='Camera Observations', ax=None)
         vector_end = np.dot(T_wcam_cam[:3, :3], np.array([0, 0, arrow_length]).reshape(3, 1)) + T_wcam_cam[:3, 3].reshape(3, 1)
         dir = vector_end - vector_start
         if i == 0:
-            ax.arrow(vector_start[0][0], vector_start[2][0], dir[0][0], dir[2][0], head_width=head_width*2.0, head_length=head_length*1.5, width=0.020, fc=PALLETE[0], ec=PALLETE[0], zorder=100)
+            ax.arrow(vector_start[0][0], vector_start[2][0], dir[0][0], dir[2][0], head_width=head_width*2.0, head_length=head_length*1.6, 
+                     width=head_width*0.4, fc=PALLETE[0], ec=PALLETE[0], zorder=100)
         else:
-            ax.arrow(vector_start[0][0], vector_start[2][0], dir[0][0], dir[2][0], head_width=head_width, head_length=head_length, width=0.015, fc=PALLETE[1], ec=PALLETE[1])
+            ax.arrow(vector_start[0][0], vector_start[2][0], dir[0][0], dir[2][0], head_width=head_width*1.0, head_length=head_length*1.0, 
+                     width=head_width*0.15, fc=PALLETE[1], ec=PALLETE[1])
     min_x, max_x = np.min(points[:, 0]), np.max(points[:, 0])
     min_z, max_z = np.min(points[:, 2]), np.max(points[:, 2])
     ax.set_xlim(min_x - bound_limit, max_x + bound_limit)
@@ -140,12 +142,11 @@ if __name__ == "__main__":
             poses[i, 3:] = quat
         title = '{}-{}-{} frames'.format(args.dataset_name, scene, len(poses)-1)
         plot_cameras_arrow(poses, title=title, sample_rate=args.sample_rate)
-        # plt.show()
         plt.savefig(os.path.join(args.dataset, '../scene_stat', '{}_poses.pdf'.format(scene)))
         plt.close()
-        # break
-
         num_ref += 1
         num_query += len(poses) - 1
+
+        # break
 
     print(Fore.GREEN + 'Total {} (reference) scenes, {} query images'.format(num_ref, num_query))
