@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 
 device = 'cuda' # 'cpu'
-str_matcher = "superpoint-lg" # superpoint, superpoint-lg
+str_matcher = "superglue" # superglue, superpoint-lg
 matcher = get_matcher(str_matcher, device=device, max_num_keypoints=4096)
 
 def get_pair_dict(pair_path):
