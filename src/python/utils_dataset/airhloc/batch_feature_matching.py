@@ -10,7 +10,7 @@ import cv2
 
 device = 'cuda' # 'cpu'
 str_matcher = "superpoint-lg" # superpoint, superpoint-lg
-matcher = get_matcher(str_matcher, device=device, max_num_keypoints=4096)  # superpoint+superglue
+matcher = get_matcher(str_matcher, device=device, max_num_keypoints=4096)
 
 def get_pair_dict(pair_path):
 	file_dict = {}

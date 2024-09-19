@@ -27,15 +27,19 @@ T_sensor_cam = convert_vec_to_matrix(trans, quat, mode='xyzw')
 
 ###############################
 # Anymal
-trans = np.array([-0.377, -0.001, -0.482])
-quat = np.array([-0.013, -0.141, -0.008, 0.990])
-T_livox_base = convert_vec_to_matrix(trans, quat, mode='xyzw')
+# trans = np.array([-0.377, -0.001, -0.482])
+# quat = np.array([-0.013, -0.141, -0.008, 0.990])
+# T_livox_base = convert_vec_to_matrix(trans, quat, mode='xyzw')
 # T_offset = T_livox_base
 
-trans = np.array([0.004, 0.018, -0.024])
-quat = np.array([-0.509, 0.453, -0.526, 0.509])
-T_livox_cam = convert_vec_to_matrix(trans, quat, mode='xyzw')
+# trans = np.array([0.004, 0.018, -0.024])
+# quat = np.array([-0.509, 0.453, -0.526, 0.509])
+# T_livox_cam = convert_vec_to_matrix(trans, quat, mode='xyzw')
 # T_offset = T_livox_cam
+###############################
+
+###############################
+T_offset = np.eye(4)
 ###############################
 
 def transform_odom(args):
