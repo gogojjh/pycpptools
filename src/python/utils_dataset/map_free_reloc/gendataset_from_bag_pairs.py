@@ -8,6 +8,10 @@ Source: https://github.com/nianticlabs/map-free-reloc
 Jinhao HE (David Willo)
 '''
 
+"""Format of Input
+ROSBag
+"""
+
 """Format of Map-Free-Reloc
 s004600/
     seq0/

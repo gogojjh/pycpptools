@@ -41,7 +41,10 @@ def save_path_tum_format(args):
 			qy = pose_msg.pose.orientation.y
 			qz = pose_msg.pose.orientation.z
 			qw = pose_msg.pose.orientation.w
-			pose_list.append([timestamp, tx, ty, tz, qx, qy, qz, qw])
+			vx = pose_msg.twist.linear.x
+			vy = pose_msg.twist.linear.y
+			vz = pose_msg.twist.linear.z
+			pose_list.append([timestamp, tx, ty, tz, qx, qy, qz, qw, vx, vy, vz])
 		break
 	bag.close()
 	np.savetxt(args.out_pose_path, np.array(pose_list), '%.9f')
@@ -58,7 +61,10 @@ def save_odom_tum_format(args):
 		qy = msg.pose.pose.orientation.y
 		qz = msg.pose.pose.orientation.z
 		qw = msg.pose.pose.orientation.w
-		pose_list.append([timestamp, tx, ty, tz, qx, qy, qz, qw])
+		vx = msg.twist.twist.linear.x
+		vy = msg.twist.twist.linear.y
+		vz = msg.twist.twist.linear.z
+		pose_list.append([timestamp, tx, ty, tz, qx, qy, qz, qw, vx, vy, vz])
 	bag.close()
 	np.savetxt(args.out_pose_path, np.array(pose_list), '%.9f')
 

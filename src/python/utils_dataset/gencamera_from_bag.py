@@ -21,7 +21,6 @@ ucl_east/
     seq-01/
         frame-000000.color.png
         frame-000000.depth.png (mm)
-		frame-000000.semantic.png
 		frame-000000.pose.txt (format: 4x4 transformation matrix)
     camera-intrinsics.txt (format: 3x3 intrinsics matrix)
 """
@@ -120,17 +119,22 @@ class DataGenerator:
 		self.camera_intri = np.vstack([self.camera_intri, vec])
 
 		# Convert and save RGB, depth, and semantic image
-		cv_image = self.RGB_CV_FUNCTION(rgb_image, "bgr8")
-		cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.color.jpg', cv_image)
-		cv_image = bridge.imgmsg_to_cv2(depth_image, "passthrough")
+		cv_rgb_image = self.RGB_CV_FUNCTION(rgb_image, "bgr8")
+		cv_depth_image = bridge.imgmsg_to_cv2(depth_image, "passthrough")
 		if depth_image.encoding == "32FC1":
-			cv_image = np.nan_to_num(cv_image, nan=0.0, posinf=1e3, neginf=0.0)
-			cv_image = (cv_image * 1000).astype(np.uint16)
+			cv_depth_image = np.nan_to_num(cv_depth_image, nan=0.0, posinf=1e3, neginf=0.0)
+			cv_depth_image = (cv_depth_image * 1000).astype(np.uint16)
 		if depth_image.encoding == "mono8":
-			cv_image = (cv_image / 25.641025 * 1000).astype(np.uint16) 
-		cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.depth.png', cv_image)
-		cv_image = self.RGB_CV_FUNCTION(semantic_image, "bgr8")
-		cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.semantic.png', cv_image)
+			cv_depth_image = (cv_depth_image / 25.641025 * 1000).astype(np.uint16) 
+		cv_semantic_image = self.RGB_CV_FUNCTION(semantic_image, "bgr8")
+
+		if self.out_data_format == '3dmatch':
+			cv2.imwrite(f'{self.base_path}/seq-01/{self.suffix}{self.camera_poses.shape[0]:06d}.color.png', cv_rgb_image)
+			cv2.imwrite(f'{self.base_path}/seq-01/{self.suffix}{self.camera_poses.shape[0]:06d}.depth.png', cv_depth_image)
+		else:
+			cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.color.jpg', cv_rgb_image)
+			cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.depth.png', cv_depth_image)
+			cv2.imwrite(f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.semantic.png', cv_semantic_image)
 
 		# Convert odometry to translation and quaternion
 		trans, quat = convert_rosodom_to_vec(base_odom, 'xyzw')
@@ -143,7 +147,7 @@ class DataGenerator:
 		self.camera_poses = np.vstack([self.camera_poses, vec])
 
 		if self.out_data_format == '3dmatch':
-			path = f'{self.base_path}/seq/{self.suffix}{self.camera_poses.shape[0]:06d}.pose.txt'
+			path = f'{self.base_path}/seq-01/{self.suffix}{self.camera_poses.shape[0]:06d}.pose.txt'
 			np.savetxt(path, T_w_cam, fmt='%.5f')
 
 	def stereo_image_callback(self, left_rgb_image, right_rgb_image):
@@ -157,20 +161,24 @@ class DataGenerator:
 
 	def setup_directories(self):
 		base_path = os.path.join(self.args.out_dir, f'out_{self.out_data_format}')
-		if self.out_data_format == "euroc":
-			paths = [self.args.out_dir, base_path, f'{base_path}/cam0/data', f'{base_path}/cam1/data']
-			for path in paths:
-				os.makedirs(path, exist_ok=True)
-			self.base_path = base_path
-		else:
+		if self.out_data_format == "general":
 			paths = [self.args.out_dir, base_path, f'{base_path}/seq']
 			for path in paths:
 				os.makedirs(path, exist_ok=True)
 			self.base_path = base_path
-		if self.out_data_format == '3dmatch':
-			self.suffix = 'frame-'
-		else:
 			self.suffix = ''
+		elif self.out_data_format == "euroc":
+			paths = [self.args.out_dir, base_path, f'{base_path}/cam0/data', f'{base_path}/cam1/data']
+			for path in paths:
+				os.makedirs(path, exist_ok=True)
+			self.base_path = base_path
+			self.suffix = ''
+		else:
+			paths = [self.args.out_dir, base_path, f'{base_path}/seq-01']
+			for path in paths:
+				os.makedirs(path, exist_ok=True)
+			self.base_path = base_path
+			self.suffix = 'frame-'
 
 if __name__ == '__main__':
 	data_generator = DataGenerator()
@@ -180,5 +188,7 @@ if __name__ == '__main__':
 			np.savetxt(os.path.join(data_generator.base_path, 'poses.txt'), data_generator.camera_poses, fmt='%.5f')
 			np.savetxt(os.path.join(data_generator.base_path, 'intrinsics.txt'), data_generator.camera_intri, fmt='%.5f')
 		elif data_generator.out_data_format == '3dmatch':
-			np.savetxt(os.path.join(data_generator.base_path, 'camera-intrinsics.txt'), data_generator.camera_intri[0, :9].reshape(3, 3), fmt='%.5f')
+			vec = data_generator.camera_intri[0, :4]
+			K = np.array([[vec[0], 0, vec[2]], [0, vec[1], vec[3]], [0, 0, 1]])
+			np.savetxt(os.path.join(data_generator.base_path, 'camera-intrinsics.txt'), K, fmt='%.5f')
 			
