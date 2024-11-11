@@ -6,7 +6,7 @@ Version: 1.0
 Usage: python gencamera_from_bag.py --config /path/config_anymal.yaml --out_dir /data_anymal
 """
 
-"""Format of generate dataset
+"""Format of general dataset
 ucl_east/
     seq/
         000000.color.png
