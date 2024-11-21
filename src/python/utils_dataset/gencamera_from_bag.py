@@ -6,12 +6,12 @@ Version: 1.0
 Usage: python gencamera_from_bag.py --config /path/config_anymal.yaml --out_dir /data_anymal
 """
 
-"""Format of generate dataset
+"""Format of general dataset
 ucl_east/
     seq/
         000000.color.png
         000000.depth.png (mm)
-		000000.semantic.png
+	000000.semantic.png
     poses.txt (TUM format: timestamp tx ty tz qx qy qz qw)
     intrinsics.txt (format: fx fy cx cy width height)
 """
@@ -21,7 +21,7 @@ ucl_east/
     seq-01/
         frame-000000.color.png
         frame-000000.depth.png (mm)
-		frame-000000.pose.txt (format: 4x4 transformation matrix)
+	frame-000000.pose.txt (format: 4x4 transformation matrix)
     camera-intrinsics.txt (format: 3x3 intrinsics matrix)
 """
 
@@ -29,13 +29,13 @@ ucl_east/
 ucl_east/
     seq-01/
         cam0/data/
-			timestamp1.png (nsec)
-			timestamp2.png (nsec)
-			...
-		cam1/data/
-			timestamp1.png (nsec)
-			timestamp2.png (nsec)
-			...
+	    timestamp1.png (nsec)
+	    timestamp2.png (nsec)
+	    ...
+	cam1/data/
+	    timestamp1.png (nsec)
+	    timestamp2.png (nsec)
+	    ...
 """
 
 import os
