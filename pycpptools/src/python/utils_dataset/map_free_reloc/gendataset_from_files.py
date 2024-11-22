@@ -227,7 +227,7 @@ class DataGenerator:
 					vec = np.empty((1, 8), dtype=object)
 					vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq1/frame_{new_img_id:05d}.jpg', np.roll(quat, 1), trans
 					all_poses_abs = np.vstack((all_poses_abs, vec))
-					# Save images 
+					# Save images
 					new_rgb_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.jpg')
 					new_depth_img_path = os.path.join(self.args.out_dir, f's{scene_id:05d}', 'seq1', f'frame_{new_img_id:05d}.zed.png')			
 					os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
