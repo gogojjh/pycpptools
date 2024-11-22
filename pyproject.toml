@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycpptools"
+readme = "README.md"
+description = "pycpptools"
+authors = [
+  {name = "Jianhao Jiao"},{email = "jiaojh1994@gmail.com"},
+]
+maintainers = [
+  {name = "Jianhao Jiao"},{email = "jiaojh1994@gmail.com"},
+]
+requires-python = ">= 3.8"
+license = {file = "LICENSE"}
+keywords = ["pycpptools"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+dynamic = ["version", 
+           "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/gogojjh/pycpptools"
+# Documentation = "https://readthedocs.org"
+Repository = "https://github.com/gogojjh/pycpptools"
+# "Bug Tracker" = "https://github.com/me/spam/issues"
+# Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+dependencies = { file = [
+  "./requirements.txt",
+] }
+version = { attr = "estimator.__version__" }
+
+[tool.setuptools.packages]
+find = {}
