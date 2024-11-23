@@ -8,9 +8,9 @@ from scipy.spatial.transform import Rotation
 def convert_vec_gtsam_pose3(trans, quat, mode='xyzw'):
     from scipy.spatial.transform import Rotation
     if mode=='xyzw':
-        pose3 = gtsam.Pose3(gtsam.Rot3(quat[3], quat[0], quat[1], quat[2]), trans)
+        pose3 = gtsam.Pose3(gtsam.Rot3(quat[3], quat[0], quat[1], quat[2]), trans.reshape(3, 1))
     else:
-        pose3 = gtsam.Pose3(gtsam.Rot3(quat[0], quat[1], quat[2], quat[3]), trans)
+        pose3 = gtsam.Pose3(gtsam.Rot3(quat[0], quat[1], quat[2], quat[3]), trans.reshape(3, 1))
     return pose3
 
 # Function to convert position and quaternion vectors to a transformation matrix
