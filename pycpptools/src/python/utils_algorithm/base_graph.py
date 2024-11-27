@@ -19,6 +19,7 @@ class BaseGraph:
 		out_str = f"Graph has {len(self.nodes)} nodes with {num_edge} edges"
 		return out_str
 
+	# TODO(gogojjh): The merge function should correct all variables in the node
 	def merge(self, new_graph, edges_nodeA_nodeB_weight):
 		"""
 		Merge two graphs by connecting the nodes with the specified edges.
@@ -40,8 +41,7 @@ class BaseGraph:
 			self.add_node(new_node)
 
 		for edge in edges_nodeA_nodeB_weight:
-			new_node = self.get_node(edge[1].id + id_offset)
-			weight = edge[2]
+			new_node, weight = self.get_node(edge[1].id + id_offset), edge[2]
 			self.add_edge_undirected(edge[0], new_node, weight)
 
 	def read_edge_list(self, path_edge_list):
