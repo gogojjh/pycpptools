@@ -20,6 +20,8 @@ class BaseGraph:
 		return out_str
 
 	def read_edge_list(self, path_edge_list):
+		if not os.path.exists(path_edge_list): 
+			return
 		edges_A_B_weight = np.loadtxt(path_edge_list, dtype=float)
 		for edge in edges_A_B_weight:
 			node_id0, node_id1 = int(edge[0]), int(edge[1])

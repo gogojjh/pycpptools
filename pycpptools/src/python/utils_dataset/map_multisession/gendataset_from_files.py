@@ -196,13 +196,13 @@ class DataGenerator:
 				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
 
 				##### Poses in the relative world frame of segmented frames (gt)
-				vec = np.empty((1, 8), dtype=object)
-				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
-				T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
-				T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
-				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
-				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
-				seg_poses_rel_gt = np.vstack((seg_poses_rel_gt, vec))
+				# vec = np.empty((1, 8), dtype=object)
+				# tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
+				# T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
+				# T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
+				# tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
+				# vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
+				# seg_poses_rel_gt = np.vstack((seg_poses_rel_gt, vec))
 
 				##### Poses in the relative world frame of segmented frames (noise)
 				# vec = np.empty((1, 8), dtype=object)
@@ -214,8 +214,8 @@ class DataGenerator:
 				seg_poses_rel_noise = np.vstack((seg_poses_rel_noise, vec))
 
 				##### Edges
-				if ind > start_ind:
-					dis = np.linalg.norm(self.poses[ind - 1, 1:4] - self.poses[ind, 1:4])
+				if cur_ind > 0:
+					dis = np.linalg.norm(self.poses[(cur_ind - 1) * self.args.step + start_ind, 1:4] - self.poses[cur_ind * self.args.step + start_ind, 1:4])
 					edges = np.vstack((edges, np.array([cur_ind - 1, cur_ind, dis])))
 				##### Save images from segmented frames
 				rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{ind:06d}.color.jpg')
@@ -230,7 +230,8 @@ class DataGenerator:
 
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time, fmt='%s %.6f')
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_gt.txt'), seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
+			# NOTE(gogojjh): not use poses_gt.txt
+			# np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_gt.txt'), seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_noise, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/edge_list.txt'), edges, fmt='%d %d %.6f')
