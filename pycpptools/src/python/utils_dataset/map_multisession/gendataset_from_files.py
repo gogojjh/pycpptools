@@ -159,6 +159,9 @@ class DataGenerator:
 		]
 		print(f'Total length of segment: {total_len}, split {N} segments')
 		print('Segments: ', path_segments)
+
+		tsl, quat = self.poses[path_segments[0][0], 1:4], self.poses[path_segments[0][0], 4:]
+		Tw2c_seg0 = convert_vec_to_matrix(tsl, quat, 'xyzw')
 		for seg_id, (start_ind, end_ind) in enumerate(path_segments):
 			print(f'Processing segment {seg_id} from {start_ind} to {end_ind}')
 			seg_time = np.empty((0, 2), dtype=object)
@@ -169,7 +172,7 @@ class DataGenerator:
 
 			edges = np.empty((0, 3), dtype=object)
 			tsl, quat = self.poses[start_ind, 1:4], self.poses[start_ind, 4:]
-			T_w2c0 = convert_vec_to_matrix(tsl, quat, 'xyzw')
+			Tw2c_segt = convert_vec_to_matrix(tsl, quat, 'xyzw')
 			for ind in range(start_ind, end_ind, self.args.step):
 				cur_ind = int((ind - start_ind) / self.args.step)
 				##### Time
@@ -187,7 +190,8 @@ class DataGenerator:
 				vec = np.empty((1, 8), dtype=object)
 				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
 				Twc = convert_vec_to_matrix(tsl, quat, 'xyzw')
-				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
+				T_wseg02c = np.linalg.inv(Tw2c_seg0) @ Twc
+				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wseg02c), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
 
@@ -195,8 +199,8 @@ class DataGenerator:
 				vec = np.empty((1, 8), dtype=object)
 				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
 				T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
-				T_w2c_ct = np.linalg.inv(T_w2c0) @ T_w2ct
-				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_w2c_ct), 'wxyz')
+				T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
+				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_rel_gt = np.vstack((seg_poses_rel_gt, vec))
 
@@ -224,12 +228,12 @@ class DataGenerator:
 				os.system(f'cp {depth_img_path} {new_depth_img_path}')
 				os.system(f'cp {sem_img_path} {new_sem_img_path}')
 
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time, fmt='%s %.9f')
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/intrinsics.txt'), seg_intrinsics, fmt='%s %.9f %.9f %.9f %.9f %d %d')
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_gt.txt'), seg_poses_rel_gt, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f %.9f')
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_noise, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f %.9f')
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s %.9f %.9f %.9f %.9f %.9f %.9f %.9f')
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/edge_list.txt'), edges, fmt='%d %d %.9f')
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time, fmt='%s %.6f')
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_gt.txt'), seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_noise, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/edge_list.txt'), edges, fmt='%d %d %.6f')
 		print('Finish generating dataset')
 		# input()
 
