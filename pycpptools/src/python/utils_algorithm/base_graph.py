@@ -19,31 +19,6 @@ class BaseGraph:
 		out_str = f"Graph has {len(self.nodes)} nodes with {num_edge} edges"
 		return out_str
 
-	# TODO(gogojjh): The merge function should correct all variables in the node
-	def merge(self, new_graph, edges_nodeA_nodeB_weight):
-		"""
-		Merge two graphs by connecting the nodes with the specified edges.
-
-		Args:
-			new_graph (BaseGraph): The graph to be merged with the current graph.
-			edges_A_B_weight (list): List of tuples, each tuple contains nodeA, nodeB, and the weight of the edge.
-
-		Returns:
-			None
-		"""
-		id_offset = max(self.get_all_id()) + 1
-		for node_id in new_graph.nodes:
-			# Copy the node from the new graph to avoid influencing the original graph
-			new_node = copy.deepcopy(new_graph.get_node(node_id))
-			# Update the node id and the edge ids which are different from the original graph
-			for edge in new_node.edges: edge[0].id += id_offset
-			new_node.id += id_offset
-			self.add_node(new_node)
-
-		for edge in edges_nodeA_nodeB_weight:
-			new_node, weight = self.get_node(edge[1].id + id_offset), edge[2]
-			self.add_edge_undirected(edge[0], new_node, weight)
-
 	def read_edge_list(self, path_edge_list):
 		edges_A_B_weight = np.loadtxt(path_edge_list, dtype=float)
 		for edge in edges_A_B_weight:
@@ -53,6 +28,19 @@ class BaseGraph:
 				node0 = self.get_node(node_id0)
 				node1 = self.get_node(node_id1)
 				self.add_edge_undirected(node0, node1, weight)
+	
+	def write_edge_list(self, path_edge_list):
+		edges = np.zeros((0, 3), dtype=np.float64)
+		seen_edge = set()
+		for node_id, node in self.nodes.items():
+			for neighbor, weight in node.edges:
+				sorted_pair = tuple(sorted([node_id, neighbor.id]))
+				if sorted_pair not in seen_edge:
+					seen_edge.add(sorted_pair)
+					vec = np.zeros((1, 3), dtype=np.float64)
+					vec[0, 0], vec[0, 1], vec[0, 2] = node_id, neighbor.id, weight
+					edges = np.vstack((edges, vec))
+		np.savetxt(path_edge_list, edges, fmt='%d %d %.9f')
 
 	# Add a new node to the graph if it doesn't already exist
 	def add_node(self, new_node):

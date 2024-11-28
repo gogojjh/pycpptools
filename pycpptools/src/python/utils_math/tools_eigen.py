@@ -14,17 +14,19 @@ def convert_vec_gtsam_pose3(trans, quat, mode='xyzw'):
     return pose3
 
 # Function to convert position and quaternion vectors to a transformation matrix
-# vec_p: position vector (x, y, z)
-# vec_q: quaternion vector (qw, qx, qy, qz)
 def convert_vec_to_matrix(vec_p, vec_q, mode='xyzw'):
 	# Initialize a 4x4 identity matrix
 	tf = np.eye(4)
 	if mode == 'xyzw':
+		# vec_p: position vector (x, y, z)
+		# vec_q: quaternion vector (qx, qy, qz, qw)
 		# Set the rotation part of the transformation matrix using the quaternion
 		tf[:3, :3] = Rotation.from_quat(vec_q).as_matrix()
 		# Set the translation part of the transformation matrix
 		tf[:3, 3] = vec_p
 	elif mode == 'wxyz':
+		# vec_p: position vector (x, y, z)
+		# vec_q: quaternion vector (qw, qx, qy, qz)
 		# Set the rotation part of the transformation matrix using the quaternion
 		tf[:3, :3] = Rotation.from_quat(np.roll(vec_q, -1)).as_matrix()
 		# Set the translation part of the transformation matrix
@@ -33,15 +35,17 @@ def convert_vec_to_matrix(vec_p, vec_q, mode='xyzw'):
 
 # Function to convert a transformation matrix back to position and quaternion vectors
 # tf_matrix: 4x4 transformation matrix
-# vec_p: position vector (x, y, z)
-# vec_q: quaternion vector (qw, qx, qy, qz)
 def convert_matrix_to_vec(tf_matrix, mode='xyzw'):
 	if mode == 'xyzw':
+		# vec_p: position vector (x, y, z)
+		# vec_q: quaternion vector (qx, qy, qz, qw)
 		# Extract the translation vector from the matrix
 		vec_p = tf_matrix[:3, 3]
 		# Extract the rotation part of the matrix and convert it to a quaternion
 		vec_q = Rotation.from_matrix(tf_matrix[:3, :3]).as_quat()
 	if mode == 'wxyz':
+		# vec_p: position vector (x, y, z)
+		# vec_q: quaternion vector (qw, qx, qy, qz)
 		# Extract the translation vector from the matrix
 		vec_p = tf_matrix[:3, 3]
 		# Extract the rotation part of the matrix and convert it to a quaternion
