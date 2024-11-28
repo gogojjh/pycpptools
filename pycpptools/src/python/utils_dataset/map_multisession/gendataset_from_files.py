@@ -6,7 +6,7 @@ Version: 1.0
 """
 
 """
-Usage: python gendataset_from_files.py --in_dir out_general --out_dir map_multisession_eval --num_split 2 --scene_id 0 --start_indice 0
+Usage: python gendataset_from_files.py --in_dir out_general --out_dir map_multisession_eval/s17DRP5sb8fy --num_split 2 --scene_id 0 --start_indice 0
 """
 
 """Format of input dataset
@@ -141,7 +141,8 @@ class DataGenerator:
 		self.start_indice = self.args.start_indice
 			
 	def setup_directories(self):
-		base_path = os.path.join(self.args.out_dir, f's{self.args.scene_id:05d}')
+		# base_path = os.path.join(self.args.out_dir, f's{self.args.scene_id:05d}')
+		base_path = self.args.out_dir
 		paths = [base_path]
 		for i in range(self.args.num_split):
 			paths.append(os.path.join(base_path, f'out_map{i}'))
@@ -160,14 +161,13 @@ class DataGenerator:
 		print(f'Total length of segment: {total_len}, split {N} segments')
 		print('Segments: ', path_segments)
 
-		tsl, quat = self.poses[path_segments[0][0], 1:4], self.poses[path_segments[0][0], 4:]
-		Tw2c_seg0 = convert_vec_to_matrix(tsl, quat, 'xyzw')
+		# tsl, quat = self.poses[path_segments[0][0], 1:4], self.poses[path_segments[0][0], 4:]
+		# Tw2c_seg0 = convert_vec_to_matrix(tsl, quat, 'xyzw')
 		for seg_id, (start_ind, end_ind) in enumerate(path_segments):
 			print(f'Processing segment {seg_id} from {start_ind} to {end_ind}')
 			seg_time = np.empty((0, 2), dtype=object)
 			seg_intrinsics = np.empty((0, 7), dtype=object)
 			seg_poses_abs_gt = np.empty((0, 8), dtype=object)
-			seg_poses_rel_gt = np.empty((0, 8), dtype=object)
 			seg_poses_rel_noise = np.empty((0, 8), dtype=object)
 
 			edges = np.empty((0, 3), dtype=object)
@@ -190,27 +190,22 @@ class DataGenerator:
 				vec = np.empty((1, 8), dtype=object)
 				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
 				Twc = convert_vec_to_matrix(tsl, quat, 'xyzw')
-				T_wseg02c = np.linalg.inv(Tw2c_seg0) @ Twc
-				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wseg02c), 'wxyz')
+				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
 
 				##### Poses in the relative world frame of segmented frames (gt)
-				# vec = np.empty((1, 8), dtype=object)
-				# tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
-				# T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
-				# T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
-				# tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
-				# vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
-				# seg_poses_rel_gt = np.vstack((seg_poses_rel_gt, vec))
-
-				##### Poses in the relative world frame of segmented frames (noise)
-				# vec = np.empty((1, 8), dtype=object)
-				# tsl, quat = self.poses[ind, 0:3], self.poses[ind, 3:]
-				# T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
-				# T_w2c_0t = np.linalg.inv(T_w2c0) @ T_w2ct
-				# tsl_0t, quat_0t = convert_matrix_to_vec(np.linalg.inv(T_w2c_0t), 'wxyz')
-				# vec[0, 0], vec[0, 1:4], vec[0, 4:] = f'seq/{cur_ind:06d}.color.jpg', tsl_0t, quat_0t
+				vec = np.empty((1, 8), dtype=object)
+				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
+				T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
+				# NOTE(gogojjh): the first reference frame is represented in the absolute world frame
+				if seg_id == 0:
+					T_wsegt2c = T_w2ct
+				# NOTE(gogojjh): the other frames are represented in the relative world frame (define the origin of the first frame)
+				else:
+					T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
+				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
+				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_rel_noise = np.vstack((seg_poses_rel_noise, vec))
 
 				##### Edges
@@ -230,8 +225,6 @@ class DataGenerator:
 
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time, fmt='%s %.6f')
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
-			# NOTE(gogojjh): not use poses_gt.txt
-			# np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_gt.txt'), seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_noise, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/edge_list.txt'), edges, fmt='%d %d %.6f')
