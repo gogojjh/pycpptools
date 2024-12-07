@@ -15,7 +15,8 @@ out_general/
         000000.color.png
         000000.depth.png (mm)
 		000000.semantic.png
-    poses.txt (TUM format: timestamp tx ty tz qx qy qz qw)
+    poses_abs_odom.txt    (TUM format: timestamp tx ty tz qx qy qz qw)
+	poses_abs_gt.txt (TUM format: timestamp tx ty tz qx qy qz qw)
     intrinsics.txt (format: fx fy cx cy width height)
 """
 
@@ -25,6 +26,13 @@ train or train or val/
 		seq0/
 			frame_00000.jpg
 			frame_00000.(mickey, zoe, zed).png
+			poses.txt (format: image_name qw qx qy qz tx ty tz) - poses odometry in the relative world frame
+			poses_rel_gt.txt (format: image_name qw qx qy qz tx ty tz) - poses gt in the relative world frame
+			poses_abs_gt.txt (format: image_name qw qx qy qz tx ty tz) - poses gt in the absoluted world frame
+			intrinsics.txt (format: image_name fx fy cx cy width height)
+			timestamps.txt (format: image_name timestamp)
+			edge_list.txt (format: id0 id1 weight)
+			database_descriptors.txt (format: image_name descriptor)
 			...
 		seq1/
 			frame_00000.jpg
@@ -34,12 +42,7 @@ train or train or val/
 		seqN/
 			frame_00000.jpg
 			frame_00000.(mickey, zoe, zed).png
-	poses.txt (format: image_path qw qx qy qz tx ty tz) - absolute poses in the world
-	intrinsics.txt (format: image_path fx fy cx cy width height)
-    poses_seq0.txt (format: image_path qw qx qy qz tx ty tz) - relative poses
-	poses_seq1.txt (format: image_path qw qx qy qz tx ty tz) - relative poses
-	...
-	poses_seqN.txt (format: image_path qw qx qy qz tx ty tz) - relative poses
+			...
 """
 
 import os
@@ -136,13 +139,13 @@ class DataGenerator:
 		print('Usage: python gendataset_from_files.py --config config_matterport3d.yaml --in_dir out_general --out_dir map_multisession_eval --scene_id 0 --start_indice 0')
 		self.args = parser.parse_args()
 
-		self.poses = np.loadtxt(os.path.join(self.args.in_dir, 'poses.txt'))
+		self.poses_odom = np.loadtxt(os.path.join(self.args.in_dir, 'poses_abs_odom.txt'))
+		self.poses_gt = np.loadtxt(os.path.join(self.args.in_dir, 'poses_abs_gt.txt'))
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
 		self.start_indice = self.args.start_indice
 			
 	def setup_directories(self):
-		# base_path = os.path.join(self.args.out_dir, f's{self.args.scene_id:05d}')
-		base_path = self.args.out_dir
+		base_path = os.path.join(self.args.out_dir, f's{self.args.scene_id:05d}')
 		paths = [base_path]
 		for i in range(self.args.num_split):
 			paths.append(os.path.join(base_path, f'out_map{i}'))
@@ -152,66 +155,83 @@ class DataGenerator:
 		self.base_path = base_path
 
 	def run(self):
-		total_len = len(self.poses) 
+		total_len = len(self.poses_odom) 
 		N = self.args.num_split
 		path_segments = [
-			(int(max(0, i * total_len / N)), int(min(total_len, (i + 1) * total_len / N)))
+			(int(max(self.start_indice, i * total_len / N)), int(min(total_len, (i + 1) * total_len / N)))
 			for i in range(N)
 		]
 		print(f'Total length of segment: {total_len}, split {N} segments')
 		print('Segments: ', path_segments)
 
-		# tsl, quat = self.poses[path_segments[0][0], 1:4], self.poses[path_segments[0][0], 4:]
-		# Tw2c_seg0 = convert_vec_to_matrix(tsl, quat, 'xyzw')
 		for seg_id, (start_ind, end_ind) in enumerate(path_segments):
 			print(f'Processing segment {seg_id} from {start_ind} to {end_ind}')
-			seg_time = np.empty((0, 2), dtype=object)
+			seg_time_odom = np.empty((0, 2), dtype=object)
+			seg_time_gt = np.empty((0, 2), dtype=object)
 			seg_intrinsics = np.empty((0, 7), dtype=object)
+			seg_poses_rel_odom = np.empty((0, 8), dtype=object)
+			seg_poses_rel_gt = np.empty((0, 8), dtype=object)
 			seg_poses_abs_gt = np.empty((0, 8), dtype=object)
-			seg_poses_rel_noise = np.empty((0, 8), dtype=object)
-
 			edges = np.empty((0, 3), dtype=object)
-			tsl, quat = self.poses[start_ind, 1:4], self.poses[start_ind, 4:]
-			Tw2c_segt = convert_vec_to_matrix(tsl, quat, 'xyzw')
+
 			for ind in range(start_ind, end_ind, self.args.step):
 				cur_ind = int((ind - start_ind) / self.args.step)
 				##### Time
 				vec = np.empty((1, 2), dtype=object)
-				vec[0, 0], vec[0, 1] = f'seq/{cur_ind:06d}.color.jpg', self.poses[ind, 0]
-				seg_time = np.vstack((seg_time, vec))
+				vec[0, 0], vec[0, 1] = f'seq/{cur_ind:06d}.color.jpg', self.poses_odom[ind, 0]
+				seg_time_odom = np.vstack((seg_time_odom, vec))
+
+				vec = np.empty((1, 2), dtype=object)
+				vec[0, 0], vec[0, 1] = f'seq/{cur_ind:06d}.color.jpg', self.poses_gt[ind, 0]
+				seg_time_gt = np.vstack((seg_time_odom, vec))
 
 				##### Intrinsics
 				vec = np.empty((1, 7), dtype=object)
 				vec[0, 0], vec[0, 1:5], vec[0, 5], vec[0, 6] = \
-					f'seq/{cur_ind:06d}.color.jpg', self.intrinsics[ind, :4], int(self.intrinsics[ind, 4]), int(self.intrinsics[ind, 5])
+					f'seq/{cur_ind:06d}.color.jpg', self.intrinsics[ind, :4], \
+					int(self.intrinsics[ind, 4]), int(self.intrinsics[ind, 5])
 				seg_intrinsics = np.vstack((seg_intrinsics, vec))
 
 				##### Poses in the absolute world frame of all frames (gt)
 				vec = np.empty((1, 8), dtype=object)
-				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
-				Twc = convert_vec_to_matrix(tsl, quat, 'xyzw')
+				Twc = convert_vec_to_matrix(self.poses_gt[ind, 1:4], self.poses_gt[ind, 4:], 'xyzw')
 				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
 
-				##### Poses in the relative world frame of segmented frames (gt)
+				##### Poses in the relative world frame of segmented frames (odometry)
 				vec = np.empty((1, 8), dtype=object)
-				tsl, quat = self.poses[ind, 1:4], self.poses[ind, 4:]
-				T_w2ct = convert_vec_to_matrix(tsl, quat, 'xyzw')
+				T_w2ct = convert_vec_to_matrix(self.poses_odom[ind, 1:4], self.poses_odom[ind, 4:], 'xyzw')
 				# NOTE(gogojjh): the first reference frame is represented in the absolute world frame
 				if seg_id == 0:
 					T_wsegt2c = T_w2ct
 				# NOTE(gogojjh): the other frames are represented in the relative world frame (define the origin of the first frame)
 				else:
+					Tw2c_segt = convert_vec_to_matrix(self.poses_odom[start_ind, 1:4], self.poses_odom[start_ind, 4:], 'xyzw')
 					T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
 				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
-				seg_poses_rel_noise = np.vstack((seg_poses_rel_noise, vec))
+				seg_poses_rel_odom = np.vstack((seg_poses_rel_odom, vec))
+
+				##### Poses in the relative world frame of segmented frames (gt)
+				vec = np.empty((1, 8), dtype=object)
+				T_w2ct = convert_vec_to_matrix(self.poses_gt[ind, 1:4], self.poses_gt[ind, 4:], 'xyzw')
+				# NOTE(gogojjh): the first reference frame is represented in the absolute world frame
+				if seg_id == 0:
+					T_wsegt2c = T_w2ct
+				# NOTE(gogojjh): the other frames are represented in the relative world frame (define the origin of the first frame)
+				else:
+					Tw2c_segt = convert_vec_to_matrix(self.poses_gt[start_ind, 1:4], self.poses_gt[start_ind, 4:], 'xyzw')
+					T_wsegt2c = np.linalg.inv(Tw2c_segt) @ T_w2ct
+				tsl, quat = convert_matrix_to_vec(np.linalg.inv(T_wsegt2c), 'wxyz')
+				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
+				seg_poses_rel_gt = np.vstack((seg_poses_rel_gt, vec))
 
 				##### Edges
 				if cur_ind > 0:
-					dis = np.linalg.norm(self.poses[(cur_ind - 1) * self.args.step + start_ind, 1:4] - self.poses[cur_ind * self.args.step + start_ind, 1:4])
+					dis = np.linalg.norm(self.poses_odom[(cur_ind - 1) * self.args.step + start_ind, 1:4] - self.poses_odom[cur_ind * self.args.step + start_ind, 1:4])
 					edges = np.vstack((edges, np.array([cur_ind - 1, cur_ind, dis])))
+
 				##### Save images from segmented frames
 				rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{ind:06d}.color.jpg')
 				depth_img_path = os.path.join(self.args.in_dir, 'seq', f'{ind:06d}.depth.png')
@@ -221,11 +241,15 @@ class DataGenerator:
 				new_sem_img_path = os.path.join(self.base_path, f'out_map{seg_id}/seq', f'{cur_ind:06d}.semantic.png')
 				os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 				os.system(f'cp {depth_img_path} {new_depth_img_path}')
-				os.system(f'cp {sem_img_path} {new_sem_img_path}')
+				try:
+					os.system(f'cp {sem_img_path} {new_sem_img_path}')
+				except:
+					print(f'No semantic image at {sem_img_path}')
 
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time, fmt='%s %.6f')
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time_odom, fmt='%s %.9f')
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_noise, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_odom, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_rel_gt.txt'), seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/edge_list.txt'), edges, fmt='%d %d %.6f')
 		print('Finish generating dataset')
