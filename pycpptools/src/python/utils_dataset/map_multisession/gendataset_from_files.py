@@ -6,7 +6,14 @@ Version: 1.0
 """
 
 """
-Usage: python gendataset_from_files.py --in_dir out_general --out_dir map_multisession_eval/s17DRP5sb8fy --num_split 2 --scene_id 0 --start_indice 0
+Usage: python gendataset_from_files.py \
+	--in_dir out_general \
+	--out_dir map_multisession_eval/place_name \
+	--num_split 2 \
+	--scene_id 0 \
+	--start_indice 0 \
+	--step 50 \
+	--offset 0
 """
 
 """Format of input dataset
@@ -136,6 +143,7 @@ class DataGenerator:
 		parser.add_argument('--scene_id', type=int, default=0, help='Scene ID')
 		parser.add_argument('--start_indice', type=int, default=0, help='Start indice')
 		parser.add_argument('--step', type=int, default=1, help='Step')
+		parser.add_argument('--offset', type=int, default=0, help='Offset of the scene id')
 		print('Usage: python gendataset_from_files.py --config config_matterport3d.yaml --in_dir out_general --out_dir map_multisession_eval --scene_id 0 --start_indice 0')
 		self.args = parser.parse_args()
 
@@ -148,8 +156,8 @@ class DataGenerator:
 		base_path = os.path.join(self.args.out_dir, f's{self.args.scene_id:05d}')
 		paths = [base_path]
 		for i in range(self.args.num_split):
-			paths.append(os.path.join(base_path, f'out_map{i}'))
-			paths.append(os.path.join(base_path, f'out_map{i}/seq'))
+			paths.append(os.path.join(base_path, f'out_map{i+self.args.offset}'))
+			paths.append(os.path.join(base_path, f'out_map{i+self.args.offset}/seq'))
 		for path in paths:
 			os.makedirs(path, exist_ok=True)
 		self.base_path = base_path
@@ -236,9 +244,12 @@ class DataGenerator:
 				rgb_img_path = os.path.join(self.args.in_dir, 'seq', f'{ind:06d}.color.jpg')
 				depth_img_path = os.path.join(self.args.in_dir, 'seq', f'{ind:06d}.depth.png')
 				sem_img_path = os.path.join(self.args.in_dir, 'seq', f'{ind:06d}.semantic.png')
-				new_rgb_img_path = os.path.join(self.base_path, f'out_map{seg_id}/seq', f'{cur_ind:06d}.color.jpg')
-				new_depth_img_path = os.path.join(self.base_path, f'out_map{seg_id}/seq', f'{cur_ind:06d}.depth.png')			
-				new_sem_img_path = os.path.join(self.base_path, f'out_map{seg_id}/seq', f'{cur_ind:06d}.semantic.png')
+				new_rgb_img_path = os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/seq', \
+					f'{cur_ind:06d}.color.jpg')
+				new_depth_img_path = os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/seq', \
+					f'{cur_ind:06d}.depth.png')			
+				new_sem_img_path = os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/seq', \
+					f'{cur_ind:06d}.semantic.png')
 				os.system(f'cp {rgb_img_path} {new_rgb_img_path}')
 				os.system(f'cp {depth_img_path} {new_depth_img_path}')
 				try:
@@ -246,12 +257,18 @@ class DataGenerator:
 				except:
 					print(f'No semantic image at {sem_img_path}')
 
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/timestamps.txt'), seg_time_odom, fmt='%s %.9f')
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses.txt'), seg_poses_rel_odom, fmt='%s' + ' %.6f' * 7)
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_rel_gt.txt'), seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
-			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id}/edge_list.txt'), edges, fmt='%d %d %.6f')
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/timestamps.txt'), \
+				seg_time_odom, fmt='%s %.9f')
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/intrinsics.txt'), \
+				seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/poses.txt'), \
+				seg_poses_rel_odom, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/poses_rel_gt.txt'), \
+				seg_poses_rel_gt, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/poses_abs_gt.txt'), \
+				seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'out_map{seg_id+self.args.offset}/edge_list.txt'), \
+				edges, fmt='%d %d %.6f')
 		print('Finish generating dataset')
 		# input()
 
