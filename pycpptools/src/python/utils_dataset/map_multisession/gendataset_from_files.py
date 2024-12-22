@@ -12,12 +12,11 @@ Usage: python gendataset_from_files.py \
 	--num_split 2 \
 	--scene_id 0 \
 	--start_indice 0 \
-	--step 50 \
 	--offset 0
 """
 
 """Format of input dataset
-out_general/
+out_general_xxx/
     seq/
         000000.color.png
         000000.depth.png (mm)
@@ -32,13 +31,12 @@ train or train or val/
 	s00000/
 		seq0/
 			frame_00000.jpg
-			frame_00000.(mickey, zoe, zed).png
-			poses.txt (format: image_name qw qx qy qz tx ty tz) - poses odometry in the relative world frame
-			poses_rel_gt.txt (format: image_name qw qx qy qz tx ty tz) - poses gt in the relative world frame
+			frame_00000.(mickey, zoe, zed).png - optional
+			poses.txt (format: image_name qw qx qy qz tx ty tz) - poses odometry in the odometry frame
 			poses_abs_gt.txt (format: image_name qw qx qy qz tx ty tz) - poses gt in the absoluted world frame
 			intrinsics.txt (format: image_name fx fy cx cy width height)
 			timestamps.txt (format: image_name timestamp)
-			edge_list.txt (format: id0 id1 weight)
+			odometry_edge_list.txt (format: id0 id1 weight)
 			database_descriptors.txt (format: image_name descriptor)
 			...
 		seq1/
@@ -62,7 +60,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../'))
-from utils_math.tools_eigen import convert_matrix_to_vec, convert_vec_to_matrix
+from utils_math.tools_eigen import convert_matrix_to_vec, convert_vec_to_matrix, compute_relative_dis
 
 def depth_image_to_point_cloud(depth_image, intrinsics, image_shape):
     """
@@ -142,13 +140,11 @@ class DataGenerator:
 		parser.add_argument('--num_split', type=int, default=2, help='Number of splits')
 		parser.add_argument('--scene_id', type=int, default=0, help='Scene ID')
 		parser.add_argument('--start_indice', type=int, default=0, help='Start indice')
-		parser.add_argument('--step', type=int, default=1, help='Step')
 		parser.add_argument('--offset', type=int, default=0, help='Offset of the scene id')
-		print('Usage: python gendataset_from_files.py --config config_matterport3d.yaml --in_dir out_general --out_dir map_multisession_eval --scene_id 0 --start_indice 0')
-		self.args = parser.parse_args()
 
+		self.args = parser.parse_args()
 		self.poses_abs_gt = np.loadtxt(os.path.join(self.args.in_dir, 'poses_closed_loop.txt'))
-		self.poses_rel_odom = np.loadtxt(os.path.join(self.args.in_dir, 'poses_open_loop.txt'))
+		self.poses_odom = np.loadtxt(os.path.join(self.args.in_dir, 'poses_open_loop.txt'))
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
 		self.start_indice = self.args.start_indice
 			
@@ -163,12 +159,23 @@ class DataGenerator:
 		self.base_path = base_path
 
 	def run(self):
-		total_len = len(self.poses_rel_odom) 
+		total_len = len(self.poses_odom) 
 		N = self.args.num_split
-		path_segments = [
-			(int(max(self.start_indice, i * total_len / N)), int(min(total_len, (i + 1) * total_len / N)))
-			for i in range(N)
-		]
+		####################
+		# Option 1:
+		# num_extend = int(total_len / 10)
+		# Option 2:
+		num_extend = 0
+		#################### Constant velocity assumption of keyframe selection
+		HUMAN_VEL = 1.3 # m/s
+		TIME_INTERVAL = 5.0
+		DIS_THRESHOLD, ANGLE_THRESHOLD = HUMAN_VEL * TIME_INTERVAL, 60.0
+		####################
+		path_segments = []
+		for i in range(N):
+			start_ind = int(max(self.start_indice, i * total_len / N - num_extend))
+			end_ind = int(min(total_len, (i + 1) * total_len / N + num_extend))
+			path_segments.append((start_ind, end_ind))
 		print(f'Total length of segment: {total_len}, split {N} segments')
 		print('Segments: ', path_segments)
 
@@ -179,14 +186,22 @@ class DataGenerator:
 			seg_intrinsics = np.empty((0, 7), dtype=object)
 
 			seg_poses_abs_gt = np.empty((0, 8), dtype=object)
-			seg_poses_rel_odom = np.empty((0, 8), dtype=object)
+			seg_poses_odom = np.empty((0, 8), dtype=object)
 			edges = np.empty((0, 3), dtype=object)
 
-			for ind in range(start_ind, end_ind, self.args.step):
-				cur_ind = int((ind - start_ind) / self.args.step)
+			cur_ind = -1
+			last_t, last_q = self.poses_abs_gt[start_ind, 1:4], self.poses_abs_gt[start_ind, 4:]
+			for ind in range(start_ind, end_ind, 1):
+				# Keyframe selection
+				dis_tsl, dis_angle = compute_relative_dis(last_t, last_q, self.poses_odom[ind, 1:4], self.poses_odom[ind, 4:])			
+				if cur_ind < 0 or dis_tsl > DIS_THRESHOLD or dis_angle > ANGLE_THRESHOLD:
+					cur_ind += 1
+				else:
+					continue
+
 				##### Time
 				vec = np.empty((1, 2), dtype=object)
-				vec[0, 0], vec[0, 1] = f'seq/{cur_ind:06d}.color.jpg', self.poses_rel_odom[ind, 0]
+				vec[0, 0], vec[0, 1] = f'seq/{cur_ind:06d}.color.jpg', self.poses_odom[ind, 0]
 				seg_time_odom = np.vstack((seg_time_odom, vec))
 
 				vec = np.empty((1, 2), dtype=object)
@@ -200,26 +215,27 @@ class DataGenerator:
 					int(self.intrinsics[ind, 4]), int(self.intrinsics[ind, 5])
 				seg_intrinsics = np.vstack((seg_intrinsics, vec))
 
-				##### Poses in the absolute world frame of all frames (gt)
+				##### Poses in the absolute world frame (GT)
 				vec = np.empty((1, 8), dtype=object)
 				Twc = convert_vec_to_matrix(self.poses_abs_gt[ind, 1:4], self.poses_abs_gt[ind, 4:], 'xyzw')
 				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
 
-				##### Poses in the relative world frame of all frames (odometry)
+				##### Poses in the odometry frame (Odometry)
 				vec = np.empty((1, 8), dtype=object)
-				Twc = convert_vec_to_matrix(self.poses_rel_odom[ind, 1:4], self.poses_rel_odom[ind, 4:], 'xyzw')
+				Twc = convert_vec_to_matrix(self.poses_odom[ind, 1:4], self.poses_odom[ind, 4:], 'xyzw')
 				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
-				seg_poses_rel_odom = np.vstack((seg_poses_rel_odom, vec))
+				seg_poses_odom = np.vstack((seg_poses_odom, vec))
 
 				##### Edges
 				if cur_ind > 0:
-					dis = np.linalg.norm(\
-						self.poses_rel_odom[(cur_ind - 1) * self.args.step + start_ind, 1:4] - \
-						self.poses_rel_odom[cur_ind * self.args.step + start_ind, 1:4])
+					dis = np.linalg.norm(last_t - self.poses_odom[ind, 1:4])
 					edges = np.vstack((edges, np.array([cur_ind - 1, cur_ind, dis])))
+
+				##### Update last pose
+				last_t, last_q = self.poses_odom[ind, 1:4], self.poses_odom[ind, 4:]
 
 				##### Save images from segmented frames
 				map_name = f'out_map{seg_id+self.args.offset}'
@@ -239,8 +255,8 @@ class DataGenerator:
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/timestamps.txt'), seg_time_odom, fmt='%s %.9f')
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
-			np.savetxt(os.path.join(self.base_path, f'{map_name}/poses.txt'), seg_poses_rel_odom, fmt='%s' + ' %.6f' * 7)
-			np.savetxt(os.path.join(self.base_path, f'{map_name}/edge_list.txt'), edges, fmt='%d %d %.6f')
+			np.savetxt(os.path.join(self.base_path, f'{map_name}/poses.txt'), seg_poses_odom, fmt='%s' + ' %.6f' * 7)
+			np.savetxt(os.path.join(self.base_path, f'{map_name}/odometry_edge_list.txt'), edges, fmt='%d %d %.6f')
 		print('Finish generating dataset')
 		# input()
 

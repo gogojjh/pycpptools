@@ -7,6 +7,7 @@ import numpy as np
 from gtsam_pose_graph import PoseGraph
 from utils_math.tools_eigen import convert_vec_gtsam_pose3
 
+# TODO(gogojjh): add uncon_node and uncon_edge
 class BaseGraph:
 	# Initialize an empty dictionary to store nodes
 	def __init__(self):
@@ -14,8 +15,7 @@ class BaseGraph:
 
 	def __str__(self):
 		num_edge = 0
-		for node_id, node in self.nodes.items():
-			num_edge += len(node.edges)
+		for _, node in self.nodes.items(): num_edge += len(node.edges)
 		out_str = f"Graph has {len(self.nodes)} nodes with {num_edge} edges"
 		return out_str
 
@@ -33,16 +33,14 @@ class BaseGraph:
 	
 	def write_edge_list(self, path_edge_list):
 		edges = np.zeros((0, 3), dtype=np.float64)
-		seen_edge = set()
 		for node_id, node in self.nodes.items():
 			for neighbor, weight in node.edges:
-				sorted_pair = tuple(sorted([node_id, neighbor.id]))
-				if sorted_pair not in seen_edge:
-					seen_edge.add(sorted_pair)
+				# Avoid duplicate edges
+				if node_id < neighbor.id:
 					vec = np.zeros((1, 3), dtype=np.float64)
 					vec[0, 0], vec[0, 1], vec[0, 2] = node_id, neighbor.id, weight
 					edges = np.vstack((edges, vec))
-		np.savetxt(path_edge_list, edges, fmt='%d %d %.9f')
+		np.savetxt(path_edge_list, edges, fmt='%d %d %.6f')
 
 	# Add a new node to the graph if it doesn't already exist
 	def add_node(self, new_node):
