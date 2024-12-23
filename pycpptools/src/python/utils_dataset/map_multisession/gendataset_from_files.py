@@ -146,6 +146,8 @@ class DataGenerator:
 		self.poses_abs_gt = np.loadtxt(os.path.join(self.args.in_dir, 'poses_closed_loop.txt'))
 		self.poses_odom = np.loadtxt(os.path.join(self.args.in_dir, 'poses_open_loop.txt'))
 		self.intrinsics = np.loadtxt(os.path.join(self.args.in_dir, 'intrinsics.txt'))
+		self.gps_data = np.loadtxt(os.path.join(self.args.in_dir, 'gps_data.txt'))
+
 		self.start_indice = self.args.start_indice
 			
 	def setup_directories(self):
@@ -163,12 +165,12 @@ class DataGenerator:
 		N = self.args.num_split
 		####################
 		# Option 1:
-		# num_extend = int(total_len / 10)
+		num_extend = int(total_len / 10)
 		# Option 2:
-		num_extend = 0
+		# num_extend = 0
 		#################### Constant velocity assumption of keyframe selection
 		HUMAN_VEL = 1.3 # m/s
-		TIME_INTERVAL = 5.0
+		TIME_INTERVAL = 3.0
 		DIS_THRESHOLD, ANGLE_THRESHOLD = HUMAN_VEL * TIME_INTERVAL, 60.0
 		####################
 		path_segments = []
@@ -184,6 +186,7 @@ class DataGenerator:
 			seg_time_gt = np.empty((0, 2), dtype=object)
 			seg_time_odom = np.empty((0, 2), dtype=object)
 			seg_intrinsics = np.empty((0, 7), dtype=object)
+			seg_gps_data = np.empty((0, 6), dtype=object)
 
 			seg_poses_abs_gt = np.empty((0, 8), dtype=object)
 			seg_poses_odom = np.empty((0, 8), dtype=object)
@@ -215,12 +218,10 @@ class DataGenerator:
 					int(self.intrinsics[ind, 4]), int(self.intrinsics[ind, 5])
 				seg_intrinsics = np.vstack((seg_intrinsics, vec))
 
-				##### Poses in the absolute world frame (GT)
-				vec = np.empty((1, 8), dtype=object)
-				Twc = convert_vec_to_matrix(self.poses_abs_gt[ind, 1:4], self.poses_abs_gt[ind, 4:], 'xyzw')
-				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
-				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
-				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
+				##### GPS
+				vec = np.empty((1, 6), dype=object)
+				vec[0, 0], vec[0, 1:] = f'seq/{cur_ind:06d}.color.jpg', self.gps_data[ind, 1:]
+				seg_gps_data = np.vstack((seg_gps_data, vec))
 
 				##### Poses in the odometry frame (Odometry)
 				vec = np.empty((1, 8), dtype=object)
@@ -228,6 +229,13 @@ class DataGenerator:
 				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
 				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
 				seg_poses_odom = np.vstack((seg_poses_odom, vec))
+
+				##### Poses in the absolute world frame (GT) - find the nearest pose
+				vec = np.empty((1, 8), dtype=object)
+				Twc = convert_vec_to_matrix(self.poses_abs_gt[ind, 1:4], self.poses_abs_gt[ind, 4:], 'xyzw')
+				tsl, quat = convert_matrix_to_vec(np.linalg.inv(Twc), 'wxyz')
+				vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
+				seg_poses_abs_gt = np.vstack((seg_poses_abs_gt, vec))
 
 				##### Edges
 				if cur_ind > 0:
@@ -254,6 +262,7 @@ class DataGenerator:
 
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/timestamps.txt'), seg_time_odom, fmt='%s %.9f')
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/intrinsics.txt'), seg_intrinsics, fmt='%s' + ' %.6f' * 4 + ' %d' * 2)
+			np.savetxt(os.path.join(self.base_path, f'{map_name}/gps_data.txt'), seg_gps_data, fmt='%s' + ' %.6f' * 5)
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/poses_abs_gt.txt'), seg_poses_abs_gt, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/poses.txt'), seg_poses_odom, fmt='%s' + ' %.6f' * 7)
 			np.savetxt(os.path.join(self.base_path, f'{map_name}/odometry_edge_list.txt'), edges, fmt='%d %d %.6f')
