@@ -188,10 +188,11 @@ def main():
 
         tsl_enu, quat_enu = convert_to_enu(latitude, longitude, heading, REF_LATITUDE, REF_LONGITUDE)
         T_enu = convert_vec_to_matrix(tsl_enu, quat_enu)
+        T_enu_cam = np.eye(4); T_enu_cam[:3, :3] = np.array([[0,  1,  0], [0,  0, -1], [1,  0,  0]])
         for idx, R in enumerate(rotation_matrices):
             perspective = equirectangular_to_perspective(img_resized, camera_matrix, R, args.output_size)
             T_rot = np.block([[R, np.array([0, 0, 0]).reshape(3, 1)], [0, 0, 0, 1]])
-            T = T_enu @ T_rot
+            T_w2c = T_enu @ T_enu_cam @ T_rot
 
             # Time
             vec = np.empty((1, 2), dtype=object)
@@ -207,19 +208,19 @@ def main():
 
             ##### Edges
             if cur_ind > 0:
-                dis = np.linalg.norm(T[:3, 3] - poses_trans_w2c, axis=1)
+                dis = np.linalg.norm(T_w2c[:3, 3] - poses_trans_w2c, axis=1)
                 dis[np.abs(dis) <= 1e-6] = 1e-6
                 indices = np.where(dis <= EDGE_DIS_THRESHOLD)
                 for ind in indices[0]:
                     edges = np.vstack((edges, np.array([ind, cur_ind, dis[ind]])))
 
             # Poses
-            T_c2w = np.linalg.inv(T)
+            T_c2w = np.linalg.inv(T_w2c)
             tsl, quat = convert_matrix_to_vec(T_c2w)
             vec = np.empty((1, 8), dtype=object)
             vec[0, 0], vec[0, 1:5], vec[0, 5:] = f'seq/{cur_ind:06d}.color.jpg', quat, tsl
             poses_odom = np.vstack((poses_odom, vec))
-            poses_trans_w2c = np.vstack((poses_trans_w2c, T[:3, 3].reshape(1, 3)))
+            poses_trans_w2c = np.vstack((poses_trans_w2c, T_w2c[:3, 3].reshape(1, 3)))
 
             # Intrinsics
             vec = np.empty((1, 7), dtype=object)
