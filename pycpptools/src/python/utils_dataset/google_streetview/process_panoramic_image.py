@@ -5,8 +5,11 @@ import os
 
 def resize_image(image, scale=0.5):
     """Resize the image by the given scale factor."""
-    new_dimensions = (int(image.shape[1] * scale), int(image.shape[0] * scale))
-    resized_image = cv2.resize(image, new_dimensions, interpolation=cv2.INTER_AREA)
+    target_width, target_height = 4096, 2048
+    resized_image = cv2.resize(image, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+
+    new_dimensions = (int(resized_image.shape[1] * scale), int(resized_image.shape[0] * scale))
+    resized_image = cv2.resize(resized_image, new_dimensions, interpolation=cv2.INTER_AREA)
     return resized_image
 
 def construct_camera_matrix(hfov, vfov, output_size):
@@ -84,7 +87,9 @@ def main():
     print(camera_matrix)
 
     # Load each panoramic image
-    for img_ind, filename in enumerate(os.listdir(args.input_path)):
+    list_filenames = os.listdir(args.input_path)
+    list_filenames.sort()
+    for img_ind, filename in enumerate(list_filenames):
         if 'jpg' not in filename: continue
 
         img = cv2.imread(os.path.join(args.input_path, filename))
@@ -99,7 +104,7 @@ def main():
         # Generate rotation matrices for the number of clusters
         # For simplicity, distribute the views evenly around the Y-axis
         rotation_matrices = []
-        angles = np.linspace(0, 360, args.num_clusters, endpoint=False)
+        angles = np.linspace(-120, 180, args.num_clusters, endpoint=False)
         for angle in angles:
             theta = np.deg2rad(angle)
             R = np.array([
@@ -115,6 +120,7 @@ def main():
             output_filename = os.path.join(args.output_path, f"perspective_view_{img_ind}_{idx}.png")
             cv2.imwrite(output_filename, perspective)
             # print(f"Saved perspective image {idx+1} to {output_filename}")
+        # break
 
 if __name__ == "__main__":
     main()
